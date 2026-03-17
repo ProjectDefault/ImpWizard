@@ -125,9 +125,19 @@ function FieldConfigPanel({
   const [isRequired, setIsRequired] = useState(field.isRequired)
   const [dataSourceType, setDataSourceType] = useState<DataSourceType>(field.dataSourceType)
   const [dataSourceId, setDataSourceId] = useState<number | null>(field.dataSourceId)
+  const [dataSourceFormId, setDataSourceFormId] = useState<number | null>(field.dataSourceFormId)
+  const [dataSourceFieldId, setDataSourceFieldId] = useState<number | null>(field.dataSourceFieldId)
   const [lockedUntilFormId, setLockedUntilFormId] = useState<number | null>(field.lockedUntilFormId)
   const [lockScope, setLockScope] = useState<LockScope>(field.lockScope)
   const [maxLength, setMaxLength] = useState<number | null>(field.maxLength)
+  const [preFillFormId, setPreFillFormId] = useState<number | null>(field.crossFormPreFillFormId)
+  const [preFillFieldId, setPreFillFieldId] = useState<number | null>(field.crossFormPreFillFieldId)
+
+  const { data: preFillSourceForm } = useQuery({
+    queryKey: ['forms', preFillFormId],
+    queryFn: () => getForm(preFillFormId!),
+    enabled: preFillFormId != null,
+  })
 
   const updateMutation = useMutation({
     mutationFn: (payload: Parameters<typeof updateFormField>[2]) =>
@@ -145,32 +155,46 @@ function FieldConfigPanel({
     isRequired !== field.isRequired ||
     dataSourceType !== field.dataSourceType ||
     dataSourceId !== field.dataSourceId ||
+    dataSourceFormId !== field.dataSourceFormId ||
+    dataSourceFieldId !== field.dataSourceFieldId ||
     lockedUntilFormId !== field.lockedUntilFormId ||
     lockScope !== field.lockScope ||
-    maxLength !== field.maxLength
+    maxLength !== field.maxLength ||
+    preFillFormId !== field.crossFormPreFillFormId ||
+    preFillFieldId !== field.crossFormPreFillFieldId
 
   function handleSave() {
     if (!label.trim()) { toast.error('Label is required'); return }
     const hasMaxLength = fieldType === 'Text' || fieldType === 'Textarea'
+    const isDropdown = fieldType === 'Dropdown'
     updateMutation.mutate({
       label: label.trim(),
       fieldType,
       isRequired,
-      dataSourceType,
-      dataSourceId: fieldType === 'Dropdown' ? dataSourceId : null,
+      dataSourceType: isDropdown ? dataSourceType : 'None',
+      dataSourceId: isDropdown ? dataSourceId : null,
+      dataSourceFormId: isDropdown && dataSourceType === 'ProjectSubmission' ? (dataSourceFormId ?? 0) : 0,
+      dataSourceFieldId: isDropdown && dataSourceType === 'ProjectSubmission' ? (dataSourceFieldId ?? 0) : 0,
       lockedUntilFormId: lockedUntilFormId ?? 0,
       lockScope,
+      crossFormPreFillFormId: !isDropdown ? (preFillFormId ?? 0) : 0,
+      crossFormPreFillFieldId: !isDropdown ? (preFillFieldId ?? 0) : 0,
       ...(hasMaxLength
         ? maxLength != null ? { maxLength } : { clearMaxLength: true }
         : { clearMaxLength: true }),
     })
   }
 
-  // Reset data source when changing from Dropdown to another type
+  // Reset data source / pre-fill when changing field type
   useEffect(() => {
     if (fieldType !== 'Dropdown') {
       setDataSourceType('None')
       setDataSourceId(null)
+      setDataSourceFormId(null)
+      setDataSourceFieldId(null)
+    } else {
+      setPreFillFormId(null)
+      setPreFillFieldId(null)
     }
     if (fieldType !== 'Text' && fieldType !== 'Textarea') {
       setMaxLength(null)
@@ -221,8 +245,13 @@ function FieldConfigPanel({
         <FieldDataSourcePicker
           dataSourceType={dataSourceType}
           dataSourceId={dataSourceId}
+          dataSourceFormId={dataSourceFormId}
+          dataSourceFieldId={dataSourceFieldId}
           onTypeChange={setDataSourceType}
           onIdChange={setDataSourceId}
+          onFormIdChange={setDataSourceFormId}
+          onFieldIdChange={setDataSourceFieldId}
+          allForms={otherForms}
         />
       )}
 
@@ -249,6 +278,50 @@ function FieldConfigPanel({
             placeholder="No limit"
             className="h-7 text-sm w-28"
           />
+        </div>
+      )}
+
+      {/* Pre-fill from prior submission (non-dropdown fields only) */}
+      {fieldType !== 'Dropdown' && (
+        <div className="space-y-1.5 pt-1 border-t">
+          <Label className="text-xs text-muted-foreground">Pre-fill from prior submission</Label>
+          <Select
+            value={preFillFormId?.toString() ?? 'none'}
+            onValueChange={v => { setPreFillFormId(v === 'none' ? null : Number(v)); setPreFillFieldId(null) }}
+          >
+            <SelectTrigger className="h-7 text-sm">
+              <SelectValue placeholder="No pre-fill" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No pre-fill</SelectItem>
+              {otherForms.map(f => (
+                <SelectItem key={f.id} value={f.id.toString()}>{f.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {preFillFormId != null && (
+            <Select
+              value={preFillFieldId?.toString() ?? ''}
+              onValueChange={v => setPreFillFieldId(v ? Number(v) : null)}
+              disabled={!preFillSourceForm}
+            >
+              <SelectTrigger className="h-7 text-sm">
+                <SelectValue placeholder="Select source field..." />
+              </SelectTrigger>
+              <SelectContent>
+                {(preFillSourceForm?.fields.filter(f => !f.isArchived) ?? []).map(f => (
+                  <SelectItem key={f.id} value={f.id.toString()}>{f.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {preFillFormId != null && (
+            <p className="text-xs text-muted-foreground">
+              This field will be pre-filled with the most recent submitted answer from the selected form on this project.
+            </p>
+          )}
         </div>
       )}
 

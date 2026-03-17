@@ -5,7 +5,7 @@ import apiClient from './client'
 export const FIELD_TYPES = ['Text', 'Number', 'Date', 'Dropdown', 'Checkbox', 'Textarea'] as const
 export type FieldType = typeof FIELD_TYPES[number]
 
-export const DATA_SOURCE_TYPES = ['None', 'ReferenceData', 'ProductType', 'UnitOfMeasure', 'Category'] as const
+export const DATA_SOURCE_TYPES = ['None', 'ReferenceData', 'ProductType', 'UnitOfMeasure', 'Category', 'ProjectSubmission'] as const
 export type DataSourceType = typeof DATA_SOURCE_TYPES[number]
 
 export const LOCK_SCOPES = ['Field', 'EntireForm'] as const
@@ -28,6 +28,12 @@ export interface FormFieldDto {
   lockedUntilFormName: string | null
   lockScope: LockScope
   maxLength: number | null
+  crossFormPreFillFormId: number | null
+  crossFormPreFillFieldId: number | null
+  crossFormPreFillFieldLabel: string | null
+  dataSourceFormId: number | null
+  dataSourceFieldId: number | null
+  dataSourceFormName: string | null
   createdAt: string
   updatedAt: string
 }
@@ -99,6 +105,10 @@ export interface UpdateFormFieldPayload {
   isArchived?: boolean
   maxLength?: number | null
   clearMaxLength?: boolean
+  crossFormPreFillFormId?: number | null
+  crossFormPreFillFieldId?: number | null
+  dataSourceFormId?: number | null
+  dataSourceFieldId?: number | null
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────

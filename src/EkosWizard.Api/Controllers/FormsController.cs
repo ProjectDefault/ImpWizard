@@ -38,6 +38,8 @@ public class FormsController : ControllerBase
         string DataSourceType, int? DataSourceId, string? DataSourceName,
         int? LockedUntilFormId, string? LockedUntilFormName,
         string LockScope, int? MaxLength,
+        int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId, string? CrossFormPreFillFieldLabel,
+        int? DataSourceFormId, int? DataSourceFieldId, string? DataSourceFormName,
         DateTime CreatedAt, DateTime UpdatedAt);
 
     public record FormDetailDto(
@@ -66,7 +68,11 @@ public class FormsController : ControllerBase
         string? DataSourceType, int? DataSourceId,
         int? LockedUntilFormId, string? LockScope,
         bool? IsArchived, int? MaxLength = null,
-        bool ClearMaxLength = false);
+        bool ClearMaxLength = false,
+        int? CrossFormPreFillFormId = null,
+        int? CrossFormPreFillFieldId = null,
+        int? DataSourceFormId = null,
+        int? DataSourceFieldId = null);
 
     public record ReorderRequest(int[] FieldIds);
 
@@ -86,12 +92,17 @@ public class FormsController : ControllerBase
             GetDataSourceName(ff),
             ff.LockedUntilFormId, ff.LockedUntilForm?.Name,
             ff.LockScope, ff.MaxLength,
+            ff.CrossFormPreFillFormId, ff.CrossFormPreFillFieldId, ff.CrossFormPreFillField?.Label,
+            ff.DataSourceFormId, ff.DataSourceFieldId, ff.DataSourceForm?.Name,
             ff.CreatedAt, ff.UpdatedAt);
 
     private static string? GetDataSourceName(FormField ff) => ff.DataSourceType switch
     {
         "ProductType" => "All Product Types",
         "Category" => "All Categories",
+        "ProjectSubmission" => ff.DataSourceForm?.Name != null
+            ? $"Submissions: {ff.DataSourceForm.Name}"
+            : "Project Submissions",
         "UnitOfMeasure" => ff.DataSourceId switch
         {
             1 => "Units of Measure — Volume",
@@ -110,7 +121,11 @@ public class FormsController : ControllerBase
     private IQueryable<Form> FormsWithFields() =>
         _db.Forms
            .Include(f => f.Fields.OrderBy(ff => ff.SortOrder))
-               .ThenInclude(ff => ff.LockedUntilForm);
+               .ThenInclude(ff => ff.LockedUntilForm)
+           .Include(f => f.Fields)
+               .ThenInclude(ff => ff.CrossFormPreFillField)
+           .Include(f => f.Fields)
+               .ThenInclude(ff => ff.DataSourceForm);
 
     // ── Form CRUD ─────────────────────────────────────────────────────────────
 
@@ -376,12 +391,20 @@ public class FormsController : ControllerBase
         if (req.IsArchived is not null) field.IsArchived = req.IsArchived.Value;
         if (req.ClearMaxLength) field.MaxLength = null;
         else if (req.MaxLength is not null) field.MaxLength = req.MaxLength;
+        if (req.CrossFormPreFillFormId is not null) field.CrossFormPreFillFormId = req.CrossFormPreFillFormId == 0 ? null : req.CrossFormPreFillFormId;
+        if (req.CrossFormPreFillFieldId is not null) field.CrossFormPreFillFieldId = req.CrossFormPreFillFieldId == 0 ? null : req.CrossFormPreFillFieldId;
+        if (req.DataSourceFormId is not null) field.DataSourceFormId = req.DataSourceFormId == 0 ? null : req.DataSourceFormId;
+        if (req.DataSourceFieldId is not null) field.DataSourceFieldId = req.DataSourceFieldId == 0 ? null : req.DataSourceFieldId;
         field.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
 
         if (field.LockedUntilFormId.HasValue)
             await _db.Entry(field).Reference(ff => ff.LockedUntilForm).LoadAsync();
+        if (field.CrossFormPreFillFieldId.HasValue)
+            await _db.Entry(field).Reference(ff => ff.CrossFormPreFillField).LoadAsync();
+        if (field.DataSourceFormId.HasValue)
+            await _db.Entry(field).Reference(ff => ff.DataSourceForm).LoadAsync();
 
         if (form.Status == "Unlocked")
             await _importTemplates.SyncFromFormAsync(id);

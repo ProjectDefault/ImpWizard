@@ -2,13 +2,19 @@ import { useQuery } from '@tanstack/react-query'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getDataSets } from '@/api/referenceData'
+import { getForm } from '@/api/forms'
 import type { DataSourceType } from '@/api/forms'
 
 interface Props {
   dataSourceType: DataSourceType
   dataSourceId: number | null
+  dataSourceFormId: number | null
+  dataSourceFieldId: number | null
   onTypeChange: (type: DataSourceType) => void
   onIdChange: (id: number | null) => void
+  onFormIdChange: (id: number | null) => void
+  onFieldIdChange: (id: number | null) => void
+  allForms: { id: number; name: string }[]
   disabled?: boolean
 }
 
@@ -22,8 +28,13 @@ const UOM_CATEGORIES = [
 export function FieldDataSourcePicker({
   dataSourceType,
   dataSourceId,
+  dataSourceFormId,
+  dataSourceFieldId,
   onTypeChange,
   onIdChange,
+  onFormIdChange,
+  onFieldIdChange,
+  allForms,
   disabled = false,
 }: Props) {
   const { data: datasets = [] } = useQuery({
@@ -32,10 +43,20 @@ export function FieldDataSourcePicker({
     enabled: dataSourceType === 'ReferenceData',
   })
 
+  const { data: sourceForm } = useQuery({
+    queryKey: ['forms', dataSourceFormId],
+    queryFn: () => getForm(dataSourceFormId!),
+    enabled: dataSourceType === 'ProjectSubmission' && dataSourceFormId != null,
+  })
+
   function handleTypeChange(type: DataSourceType) {
     onTypeChange(type)
-    onIdChange(null) // reset id when type changes
+    onIdChange(null)
+    onFormIdChange(null)
+    onFieldIdChange(null)
   }
+
+  const sourceFormFields = sourceForm?.fields.filter(f => !f.isArchived) ?? []
 
   return (
     <div className="space-y-2">
@@ -55,6 +76,7 @@ export function FieldDataSourcePicker({
             <SelectItem value="ProductType">Product Types</SelectItem>
             <SelectItem value="UnitOfMeasure">Units of Measure</SelectItem>
             <SelectItem value="Category">Categories</SelectItem>
+            <SelectItem value="ProjectSubmission">Project Submission</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -109,6 +131,52 @@ export function FieldDataSourcePicker({
 
       {dataSourceType === 'Category' && (
         <p className="text-xs text-muted-foreground">All active categories will be shown.</p>
+      )}
+
+      {dataSourceType === 'ProjectSubmission' && (
+        <>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Source Form</Label>
+            <Select
+              value={dataSourceFormId?.toString() ?? ''}
+              onValueChange={v => { onFormIdChange(v ? Number(v) : null); onFieldIdChange(null) }}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select a form..." />
+              </SelectTrigger>
+              <SelectContent>
+                {allForms.map(f => (
+                  <SelectItem key={f.id} value={f.id.toString()}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {dataSourceFormId != null && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Source Field</Label>
+              <Select
+                value={dataSourceFieldId?.toString() ?? ''}
+                onValueChange={v => onFieldIdChange(v ? Number(v) : null)}
+                disabled={disabled || sourceFormFields.length === 0}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder={sourceFormFields.length === 0 ? 'No fields available' : 'Select a field...'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sourceFormFields.map(f => (
+                    <SelectItem key={f.id} value={f.id.toString()}>{f.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            Options are populated from submitted answers on this project. If no submissions exist yet, the dropdown will be empty.
+          </p>
+        </>
       )}
     </div>
   )
