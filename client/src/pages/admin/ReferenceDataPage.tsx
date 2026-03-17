@@ -473,8 +473,6 @@ export default function ReferenceDataPage() {
       toast.success('Item added')
       setAddingItem(false)
       setNewItem({ label: '', sortOrder: 0 })
-      setEditingItemId(newItemResult.id)
-      setEditItem({ label: newItemResult.label, position: orderedItems.length + 1, productTypeIds: newItemResult.productTypes.map(pt => pt.id) })
       setScrollToItemId(newItemResult.id)
     },
     onError: () => {
