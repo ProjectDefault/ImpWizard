@@ -744,15 +744,13 @@ public class PortalController : ControllerBase
 
             "ProductType" =>
                 await _db.ProductTypes
-                    .Where(p => p.IsActive)
-                    .OrderBy(p => p.Name)
+                    .OrderBy(p => p.SortOrder).ThenBy(p => p.Name)
                     .Select(p => p.Name)
                     .ToListAsync(),
 
             "Category" =>
                 await _db.Categories
-                    .Where(c => c.IsActive)
-                    .OrderBy(c => c.Name)
+                    .OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
                     .Select(c => c.Name)
                     .ToListAsync(),
 
