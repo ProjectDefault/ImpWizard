@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Imp Wizard — Implementation Proposal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:     #2563eb;
+      --brand-lt:  #dbeafe;
+      --brand-dk:  #1e3a8a;
+      --accent:    #0ea5e9;
+      --green:     #16a34a;
+      --green-lt:  #dcfce7;
+      --yellow:    #ca8a04;
+      --yellow-lt: #fef9c3;
+      --gray-50:   #f8fafc;
+      --gray-100:  #f1f5f9;
+      --gray-200:  #e2e8f0;
+      --gray-400:  #94a3b8;
+      --gray-600:  #475569;
+      --gray-700:  #334155;
+      --gray-900:  #0f172a;
+      --radius:    8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.65;
+    }
+
+    /* ── COVER ── */
+    .cover {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #0ea5e9 100%);
+      color: #fff;
+      padding: 72px 56px 64px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::after {
+      content: '';
+      position: absolute;
+      right: -80px; top: -80px;
+      width: 480px; height: 480px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.05);
+      pointer-events: none;
+    }
+    .cover .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      opacity: .7;
+      margin-bottom: 16px;
+    }
+    .cover h1 {
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: -.03em;
+      line-height: 1.1;
+      max-width: 700px;
+    }
+    .cover .tagline {
+      font-size: 1.15rem;
+      opacity: .85;
+      margin-top: 16px;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+    .cover .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 36px;
+    }
+    .cover .chip {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 20px;
+      padding: 5px 16px;
+      font-size: .82rem;
+      font-weight: 600;
+    }
+    .cover .prepared {
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,.2);
+      display: flex;
+      gap: 48px;
+      flex-wrap: wrap;
+    }
+    .cover .prepared-item label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      opacity: .6;
+      margin-bottom: 3px;
+    }
+    .cover .prepared-item span { font-size: .95rem; font-weight: 600; }
+
+    /* ── LAYOUT ── */
+    .layout { display: flex; }
+
+    nav {
+      width: 248px;
+      flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid var(--gray-200);
+      padding: 32px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav .nav-group {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--gray-400);
+      padding: 20px 20px 6px;
+    }
+    nav a {
+      display: block;
+      padding: 7px 20px;
+      font-size: .85rem;
+      color: var(--gray-600);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all .15s;
+    }
+    nav a:hover {
+      background: var(--brand-lt);
+      color: var(--brand);
+      border-left-color: var(--brand);
+    }
+
+    main {
+      flex: 1;
+      min-width: 0;
+      padding: 52px 56px;
+      max-width: 860px;
+    }
+
+    /* ── SECTIONS ── */
+    section { margin-bottom: 64px; scroll-margin-top: 24px; }
+    section > h2 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--gray-900);
+      border-bottom: 2px solid var(--gray-200);
+      padding-bottom: 12px;
+      margin-bottom: 28px;
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--brand);
+      margin: 32px 0 10px;
+    }
+    p { color: var(--gray-700); margin-bottom: 14px; }
+    ul, ol { padding-left: 20px; margin-bottom: 14px; }
+    li { color: var(--gray-700); margin-bottom: 6px; font-size: .95rem; }
+    strong { color: var(--gray-900); }
+
+    /* ── PROBLEM CALLOUT ── */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .problem-card {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+    }
+    .problem-card .icon { font-size: 1.5rem; margin-bottom: 10px; }
+    .problem-card h4 { font-size: .95rem; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
+    .problem-card p { font-size: .88rem; margin: 0; }
+
+    /* ── SOLUTION HIGHLIGHT ── */
+    .highlight {
+      background: linear-gradient(135deg, var(--brand-lt) 0%, #e0f2fe 100%);
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin: 28px 0;
+    }
+    .highlight h3 { color: var(--brand-dk); margin-top: 0; }
+    .highlight p { color: #1e40af; margin-bottom: 0; }
+
+    /* ── FEATURE GRID ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .feature-card {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      border-top: 3px solid var(--brand);
+    }
+    .feature-card h4 { font-size: .95rem; font-weight: 700; color: var(--gray-900); margin-bottom: 8px; }
+    .feature-card p { font-size: .88rem; margin: 0; }
+
+    /* ── WIZARD STEPS ── */
+    .steps { margin: 24px 0; }
+    .step {
+      display: flex;
+      gap: 18px;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: .88rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body h4 { font-size: .95rem; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+    .step-body p { font-size: .88rem; margin: 0; }
+
+    /* ── ROLES TABLE ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+      margin: 20px 0;
+      background: #fff;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--gray-200);
+    }
+    thead th {
+      background: var(--gray-100);
+      text-align: left;
+      padding: 11px 16px;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--gray-600);
+    }
+    tbody td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-700);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody td:first-child { font-weight: 600; color: var(--gray-900); white-space: nowrap; }
+
+    /* ── DELIVERABLE BADGE ── */
+    .deliverable {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 20px;
+      padding: 12px 18px;
+      background: var(--green-lt);
+      border-radius: 6px;
+      font-size: .9rem;
+      color: var(--green);
+      font-weight: 600;
+    }
+    .deliverable::before { content: "✓"; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── PHASE ROADMAP ── */
+    .phase-row {
+      display: flex;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--gray-100);
+      align-items: flex-start;
+    }
+    .phase-row:last-child { border-bottom: none; }
+    .phase-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+    .dot-done   { background: var(--green); }
+    .dot-next   { background: var(--brand); }
+    .dot-future { background: var(--gray-400); }
+    .phase-row h4 { font-size: .92rem; font-weight: 700; color: var(--gray-900); margin-bottom: 3px; }
+    .phase-row p  { font-size: .85rem; color: var(--gray-600); margin: 0; }
+    .phase-badge {
+      display: inline-block;
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 10px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .badge-done   { background: var(--green-lt);  color: var(--green); }
+    .badge-next   { background: var(--brand-lt);  color: var(--brand); }
+    .badge-future { background: var(--gray-100);  color: var(--gray-600); }
+
+    /* ── STACK LIST ── */
+    .stack-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .stack-item {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .stack-item .s-label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-400); margin-bottom: 2px; }
+    .stack-item .s-value { font-size: .88rem; font-weight: 600; color: var(--gray-900); }
+
+    /* ── QUOTE ── */
+    .quote {
+      border-left: 4px solid var(--brand);
+      padding: 18px 24px;
+      margin: 28px 0;
+      background: #fff;
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .quote p { font-size: 1.05rem; font-style: italic; color: var(--gray-700); margin: 0; line-height: 1.7; }
+
+    /* ── CTA ── */
+    .cta {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 40px 44px;
+      margin-top: 16px;
+    }
+    .cta h3 { color: #fff; margin-top: 0; font-size: 1.3rem; }
+    .cta p { color: rgba(255,255,255,.85); margin-bottom: 0; }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 32px;
+      color: var(--gray-400);
+      font-size: .82rem;
+      border-top: 1px solid var(--gray-200);
+      background: #fff;
+    }
+
+    @media print {
+      nav { display: none; }
+      main { padding: 32px; max-width: 100%; }
+      .cover { padding: 48px 40px; }
+    }
+
+    @media (max-width: 800px) {
+      nav { display: none; }
+      main { padding: 28px 20px; }
+      .cover { padding: 40px 24px; }
+      .cover h1 { font-size: 2rem; }
+      .problem-grid, .feature-grid, .stack-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── COVER ──────────────────────────────────────────────────────────────── -->
+<div class="cover">
+  <div class="eyebrow">Proposal &mdash; Confidential</div>
+  <h1>Implementation Wizard</h1>
+  <p class="tagline">A guided, web-based onboarding platform that replaces manual spreadsheets with a structured, intelligent setup wizard — purpose-built for beverage producers.</p>
+  <div class="chips">
+    <span class="chip">Beverage-Agnostic</span>
+    <span class="chip">Salesforce Integration</span>
+    <span class="chip">14,000-Item Catalog</span>
+    <span class="chip">Customer Portal</span>
+    <span class="chip">Role-Based Access</span>
+    <span class="chip">Cloud-Ready</span>
+  </div>
+  <div class="prepared">
+    <div class="prepared-item">
+      <label>Prepared By</label>
+      <span>Imp Wizard Team</span>
+    </div>
+    <div class="prepared-item">
+      <label>Date</label>
+      <span>March 2026</span>
+    </div>
+    <div class="prepared-item">
+      <label>Version</label>
+      <span>1.0</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR NAV ──────────────────────────────────────────────────────── -->
+  <nav>
+    <div class="nav-group">Proposal</div>
+    <a href="#overview">Executive Overview</a>
+    <a href="#problem">The Problem</a>
+    <a href="#solution">Our Solution</a>
+
+    <div class="nav-group">Platform</div>
+    <a href="#wizard">The Wizard Experience</a>
+    <a href="#portal">Customer Portal</a>
+    <a href="#admin">Admin &amp; Operations</a>
+    <a href="#integrations">Integrations</a>
+
+    <div class="nav-group">Details</div>
+    <a href="#roles">User Roles</a>
+    <a href="#features">Full Feature List</a>
+    <a href="#integrations-potential">Potential Integrations</a>
+    <a href="#stack">Technology</a>
+  </nav>
+
+  <!-- ── MAIN CONTENT ──────────────────────────────────────────────────────── -->
+  <main>
+
+    <!-- OVERVIEW -->
+    <section id="overview">
+      <h2>Executive Overview</h2>
+
+      <p>Onboarding a new customer to your platform is one of the most important — and most error-prone — moments in your relationship with them. Today that process relies on raw spreadsheets passed back and forth over email, manual data entry, and time-consuming back-and-forth between implementation specialists and customers.</p>
+
+      <p><strong>Implementation Wizard</strong> (Imp Wizard) eliminates that friction. It is a purpose-built web application that guides customers and implementation specialists through every step of the onboarding process — from pulling in their Salesforce account data automatically to generating a clean, validated import file ready for system ingestion.</p>
+
+      <div class="highlight">
+        <h3>The core promise</h3>
+        <p>Customers arrive, follow a guided wizard, and leave with a complete, validated implementation package — without a single manual spreadsheet. Specialists spend their time advising, not reformatting data.</p>
+      </div>
+
+      <p>The platform serves every segment of the beverage industry: breweries, wineries, cideries, distilleries, kombucha producers, coffee roasters, soda makers, and more — all from a single shared codebase with program-level segmentation to keep each customer's data cleanly separated.</p>
+    </section>
+
+    <!-- PROBLEM -->
+    <section id="problem">
+      <h2>The Problem</h2>
+
+      <p>Implementation teams today face a predictable set of challenges every time a new customer onboards. These are not edge cases — they happen on every project.</p>
+
+      <div class="problem-grid">
+        <div class="problem-card">
+          <div class="icon">📋</div>
+          <h4>Raw Spreadsheet Hand-offs</h4>
+          <p>Customers receive blank import templates with little guidance. They fill them incorrectly, forget columns, or use wrong formats. Specialists spend hours cleaning the output.</p>
+        </div>
+        <div class="problem-card">
+          <div class="icon">🔁</div>
+          <h4>Repeated Back-and-Forth</h4>
+          <p>Every revision cycle means a new email thread with an attached file. There's no version control, no audit trail, and no visibility into what changed between revisions.</p>
+        </div>
+        <div class="problem-card">
+          <div class="icon">🔍</div>
+          <h4>Manual Catalog Lookup</h4>
+          <p>Specialists manually search a 14,000-item catalog to find matching items for a customer. The process is slow, inconsistent, and entirely dependent on institutional knowledge.</p>
+        </div>
+        <div class="problem-card">
+          <div class="icon">📊</div>
+          <h4>No Visibility or History</h4>
+          <p>Managers and stakeholders have no real-time view of where a project stands. When something goes wrong, there's no audit trail to understand what happened or who changed what.</p>
+        </div>
+      </div>
+
+      <div class="quote">
+        <p>"By the time we receive a completed template from a customer, we've already emailed it back twice with corrections. The implementation hasn't even started."</p>
+      </div>
+    </section>
+
+    <!-- SOLUTION -->
+    <section id="solution">
+      <h2>Our Solution</h2>
+
+      <p>Imp Wizard replaces the manual process with a structured, web-based platform that guides both customers and specialists through every step of onboarding. Nothing is left to interpretation — every field has context, every stage has validation, and every action is logged.</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h4>Guided 7-Step Wizard</h4>
+          <p>Customers follow a structured flow from business profile to final export. Each step is gated — they can only proceed when the current step is complete and valid.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Salesforce Auto-Fill</h4>
+          <p>The customer's email triggers a live Salesforce lookup. Their account, contact, and opportunity data auto-populates Step 1 — zero re-entry of information that already exists.</p>
+        </div>
+        <div class="feature-card">
+          <h4>14,000-Item Catalog Search</h4>
+          <p>Full-text search across the entire item catalog. Customers and specialists find, select, and stage items in seconds rather than hunting through spreadsheet columns.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Flexible Data Import</h4>
+          <p>Any structured spreadsheet — QuickBooks export, supplier price list, ERP extract — can be uploaded and column-mapped to the right fields. Mappings are saved as named templates for reuse.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Validated XLSX Export</h4>
+          <p>The final output is a clean, validated Excel file formatted exactly for system import. No manual reformatting. No guesswork. Ready to ingest on receipt.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Full Audit Trail</h4>
+          <p>Every action — form submission, item addition, export generation — is logged with timestamp, user, and detail. Every stakeholder can see exactly what happened and when.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- WIZARD EXPERIENCE -->
+    <section id="wizard">
+      <h2>The Wizard Experience</h2>
+
+      <p>The wizard is the heart of the platform. It breaks the onboarding process into seven clearly defined steps, each with its own UI, validation rules, and completion criteria. Customers cannot skip steps or submit incomplete data.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Business Profile</h4>
+            <p>Customer enters their company name and contact email. If a matching Salesforce Contact and Opportunity exists, the profile fields auto-populate from CRM data. All fields remain editable.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Preferences</h4>
+            <p>Customer selects their producer type (brewery, winery, distillery, etc.), preferred units of measure, and any program-specific configuration fields defined by the implementation team.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Catalog Search</h4>
+            <p>Full-text search across 14,000 catalog items classified by producer type. Customers browse, filter, and select items directly into their project's staging area.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Flexible Import</h4>
+            <p>Upload any structured file (Excel, CSV, QuickBooks IIF). A column-mapping interface lets users assign their file's columns to target fields. Named import templates can be saved and reused across future projects.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>Staging Review</h4>
+            <p>All selected and imported items appear in an editable staging table. Users review, correct, reorder, and remove items before committing. Inline editing keeps the workflow fast.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <h4>Validation</h4>
+            <p>The system runs a full validation pass: required fields, unit conversions, duplicate detection, and format checks. Issues are surfaced inline with clear remediation instructions.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">7</div>
+          <div class="step-body">
+            <h4>Export</h4>
+            <p>A clean, validated <code>.xlsx</code> file is generated and available for download. Export events are pushed back to Salesforce. The implementation record is marked complete.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CUSTOMER PORTAL -->
+    <section id="portal">
+      <h2>Customer Portal</h2>
+
+      <p>Beyond the wizard itself, customers have access to a persistent project portal where they can track progress, complete assigned intake forms, manage their team, and review the full history of their implementation.</p>
+
+      <h3>Project Dashboard</h3>
+      <p>A single-page view of all projects a customer is associated with, showing status, current step, and any outstanding action items. Customers can see exactly where their implementation stands at any time — no need to email a specialist for a status update.</p>
+
+      <h3>Intake Forms</h3>
+      <p>Implementation teams assign custom intake forms to projects. Customers complete forms directly in the portal — structured, validated, and tracked. Forms have a controlled lifecycle (Draft → Unlocked → Locked) and changes to published forms are queued for review before taking effect.</p>
+
+      <h3>Team Management</h3>
+      <p>SuperCustomer users can invite their own colleagues to a project, manage access levels, and remove team members as needed — without involving the implementation team for every change.</p>
+
+      <h3>History &amp; Audit Trail</h3>
+      <p>Every action taken by the customer or their team is recorded and visible in a project history tab. Customers can see who submitted what, and when — providing transparency and accountability throughout the implementation.</p>
+
+      <div class="deliverable">Customers are never left wondering about the status of their project. Everything they need is in one place, accessible 24/7.</div>
+    </section>
+
+    <!-- ADMIN & OPERATIONS -->
+    <section id="admin">
+      <h2>Admin &amp; Operations</h2>
+
+      <p>Implementation specialists and administrators have a full-featured back-office platform for managing projects, configuring the system, and monitoring activity across all customers.</p>
+
+      <h3>Project Management</h3>
+      <p>Create and manage implementation projects. Assign a CIS specialist. Monitor step progress and project status. Review the full changelog for any project at any time.</p>
+
+      <h3>Journey Builder</h3>
+      <p>Define reusable implementation journeys — sequences of stages, each containing meetings, resources, and deliverables. Assign a journey to a project to give customers and specialists a structured path to follow. Meeting and resource catalogs provide pre-defined, reusable definitions that can be copied into any journey with a single click.</p>
+
+      <h3>Audit Log</h3>
+      <p>A searchable, filterable audit log covering every action across the entire platform. Filter by date range, user, role, action type, entity, or project. Export results to CSV for compliance reporting or incident investigation. Timestamps automatically display in each user's configured timezone.</p>
+
+      <h3>User Management</h3>
+      <p>Invite users, assign roles, manage profiles, and reset passwords — all from the Admin panel. View which projects each user is associated with and what role they hold on each.</p>
+
+      <h3>Reference Data Management</h3>
+      <p>Full admin control over all reference data: categories, product types, units of measure, implementation types, programs, forms, import templates, and catalog item types. No code changes required to add, rename, or retire any reference value.</p>
+
+      <h3>Program Segmentation</h3>
+      <p>The platform supports multiple programs — separate tracks for different customer segments, product lines, or internal teams. All data (journeys, forms, templates, projects) is scoped to a program. CIS users can be restricted to only the programs they manage.</p>
+    </section>
+
+    <!-- INTEGRATIONS -->
+    <section id="integrations">
+      <h2>Integrations</h2>
+
+      <h3>Salesforce (Bidirectional)</h3>
+      <p>When a customer enters their email in Step 1, the platform performs a live Salesforce Contact lookup. If a matching Contact and linked Opportunity is found, the customer's profile fields auto-populate from CRM data. Status changes and export events are pushed back to Salesforce at key milestones — keeping your CRM current without manual updates.</p>
+      <p>The integration is optional and configurable. When Salesforce credentials are not provided, the platform runs a no-op service and works fully offline — ideal for development and pilot environments.</p>
+
+      <h3>QuickBooks (File Upload)</h3>
+      <p>Customers or specialists export data from QuickBooks Desktop (IIF) or QuickBooks Online (CSV) and upload the file directly into the wizard. A column-mapping interface handles the translation — no OAuth registration, no live API connection, and no dependency on QuickBooks availability.</p>
+
+      <h3>Excel / CSV Import &amp; Export</h3>
+      <p>Any structured spreadsheet from any source can be imported via the flexible column-mapping uploader. The final export is a validated <code>.xlsx</code> file generated by ClosedXML. Both import mappings and export formats are configurable by the implementation team without code changes.</p>
+    </section>
+
+    <!-- USER ROLES -->
+    <section id="roles">
+      <h2>User Roles</h2>
+
+      <p>The platform has four distinct user roles, each with clearly scoped access and capabilities.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Who They Are</th>
+            <th>What They Can Do</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Admin</td>
+            <td>Internal platform administrators</td>
+            <td>Full access: all configuration, user management, audit log, all projects, all programs.</td>
+          </tr>
+          <tr>
+            <td>CIS</td>
+            <td>Customer Implementation Specialists</td>
+            <td>Manage projects and journeys within their assigned programs. View and export audit log. Invite Customer and SuperCustomer users.</td>
+          </tr>
+          <tr>
+            <td>SuperCustomer</td>
+            <td>Primary customer contact (e.g. IT lead, project owner)</td>
+            <td>Full access to their project portal. Complete forms. Invite and manage their team. View project history.</td>
+          </tr>
+          <tr>
+            <td>Customer</td>
+            <td>Customer team members</td>
+            <td>Access to assigned projects. Complete assigned forms. View project history and resources.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>All users have a self-service profile page where they can update their name, title, organization, and timezone. Email and password changes require verification. All profile changes are audit-logged.</p>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features">
+      <h2>Full Feature List</h2>
+
+      <p>Below is a comprehensive listing of every capability across the platform, organized by functional area.</p>
+
+      <h3>Guided Implementation Wizard</h3>
+      <ul>
+        <li>Seven-step wizard with gated progression — each step must be complete before advancing</li>
+        <li><strong>Step 1 — Business Profile:</strong> Company name, contact email, producer type; Salesforce auto-fill on email match</li>
+        <li><strong>Step 2 — Preferences:</strong> Units of measure selection, program-specific configuration fields</li>
+        <li><strong>Step 3 — Catalog Search:</strong> Full-text search across 14,000+ catalog items; filter by producer type, category, and item type; add items directly to the staging area</li>
+        <li><strong>Step 4 — Flexible Import:</strong> Upload any structured spreadsheet (Excel, CSV, QuickBooks IIF/CSV); interactive column-mapping UI; save named import templates for reuse</li>
+        <li><strong>Step 5 — Staging Review:</strong> Editable staging table with inline editing, item reordering, and removal before commit</li>
+        <li><strong>Step 6 — Validation:</strong> Automated checks for required fields, unit conversions, duplicates, and format errors; issues surfaced inline with remediation guidance</li>
+        <li><strong>Step 7 — Export:</strong> Validated <code>.xlsx</code> file generated and ready for download; Salesforce status and export event pushed back on completion</li>
+        <li>Post-implementation access — customers can return to bulk-import new items from supplier price lists after go-live</li>
+      </ul>
+
+      <h3>Customer Portal</h3>
+      <ul>
+        <li>Personal project list showing all projects a user is associated with, current status, and outstanding action items</li>
+        <li>Intake form fill UI — structured, validated forms assigned by the implementation team; completed directly in the browser</li>
+        <li>Journey visibility — view the stages, meetings, and resources assigned to a project</li>
+        <li>Team management — SuperCustomer users invite colleagues, set access levels, and remove team members independently</li>
+        <li>Project history tab — full chronological log of every action taken by the customer team on that project</li>
+        <li>Self-service profile page — update name, title, organization, and IANA timezone; change email (requires current password, triggers re-login); change password</li>
+      </ul>
+
+      <h3>Project Management</h3>
+      <ul>
+        <li>Create and manage implementation projects with customer name, project type, Salesforce IDs, and assigned specialist</li>
+        <li>Project status tracking — Active, On Hold, Complete</li>
+        <li>Assign an implementation journey to a project for guided stage-by-stage delivery</li>
+        <li>Project detail page with tabbed view: overview, journey, meetings, resources, forms, team, changelog</li>
+        <li>Per-project user access management — grant and revoke Customer and SuperCustomer access</li>
+        <li>Full project changelog — every action on a project in reverse-chronological order, visible to all stakeholders</li>
+        <li>Dashboard overview with project count stats and projects-by-stage visualization</li>
+      </ul>
+
+      <h3>Journey Management</h3>
+      <ul>
+        <li>Journey builder — create named journeys composed of ordered stages</li>
+        <li>Stage management — add, reorder, rename, and remove stages within a journey</li>
+        <li>Stage items — each stage can contain meetings, resources, and deliverables</li>
+        <li>Stage Categories — admin-controlled taxonomy for organizing stages</li>
+        <li>Meeting Catalog — admin-maintained library of reusable meeting definitions; one-click pre-fill when adding meetings to a journey</li>
+        <li>Resource Catalog — admin-maintained library of reusable resource definitions; one-click pre-fill when adding resources to a journey</li>
+        <li>Admin-controlled Meeting Types and Resource Types vocabularies — no code changes required to add, rename, or retire a type</li>
+        <li>Assign a journey to any implementation project</li>
+      </ul>
+
+      <h3>Item Catalog</h3>
+      <ul>
+        <li>14,000+ item catalog with full-text search across item name, aliases, and description</li>
+        <li>Items classified by producer type (brewery, winery, distillery, etc.) via many-to-many association</li>
+        <li>Hierarchical item type system — CatalogItemTypes with SubTypes and custom EAV field definitions per type (e.g. Hops → Alpha Acid %)</li>
+        <li>Server-side paginated table with 50 items per page</li>
+        <li>Inline bulk editing across multiple rows</li>
+        <li>CSV import and export for catalog maintenance</li>
+        <li>Supplier and Vendor management — manufacturer and seller entities with optional linkage between them</li>
+      </ul>
+
+      <h3>Forms Management</h3>
+      <ul>
+        <li>Create and manage intake forms with title, implementation type, and program scope</li>
+        <li>Form field builder — text, select, multi-select, checkbox, date, and other field types; required flag, sort order, and option lists</li>
+        <li>Controlled form lifecycle: <strong>Draft → Unlocked → Locked</strong>; Locked ↔ Unlocked is bidirectional</li>
+        <li>Changes to Locked forms are queued in a Form Change Queue for admin review before taking effect</li>
+        <li>Nightly background processor (3AM EST) automatically processes and closes queue entries</li>
+        <li>Admin Form Change Review page — view all pending queue entries in real time</li>
+        <li>Assign forms to specific projects; track completion status per assignment</li>
+      </ul>
+
+      <h3>Import Templates</h3>
+      <ul>
+        <li>Create named column-mapping templates — name, description, and file type (Excel / CSV)</li>
+        <li>Define source-to-target column mappings with required flags and sort order</li>
+        <li>Templates are reusable across any import in the wizard's Step 4 flexible import flow</li>
+        <li>Scoped to a program for multi-tenant environments</li>
+      </ul>
+
+      <h3>User Management</h3>
+      <ul>
+        <li>Invite new users — generates a secure temporary password displayed once for secure handoff</li>
+        <li>View all users with role badges and search by name or email</li>
+        <li>Edit user profile — name, title, organization, timezone, and role (Admin only for role changes)</li>
+        <li>Reset any user's password — generates a new temporary password with a copy-to-clipboard button</li>
+        <li>View all projects a user is associated with, including their role on each project (Specialist, SuperCustomer, or Customer)</li>
+        <li>Role-based invite restrictions — CIS can only invite Customer and SuperCustomer users</li>
+      </ul>
+
+      <h3>Program Management</h3>
+      <ul>
+        <li>Create programs with name, description, color (hex), and active toggle</li>
+        <li>All implementation data scoped to a program — journeys, forms, templates, projects, reference data, and categories</li>
+        <li>Color-coded program selector displayed across all entity create and edit flows</li>
+        <li>Assign CIS users to specific programs; CIS users with assignments are restricted to only their programs' data</li>
+        <li>Program detail view shows assigned item counts across all entity types</li>
+      </ul>
+
+      <h3>Reference Data Management</h3>
+      <ul>
+        <li>Categories — self-referencing parent/child hierarchy; sortable; activate/deactivate; program-scoped</li>
+        <li>Reference Data Sets and Items — named data sets with ordered, activatable values</li>
+        <li>Product Types — name, active flag, many-to-many links to Reference Data Sets</li>
+        <li>Units of Measure — name, abbreviation, unit category (Volume / Weight / Count), system (Metric / US / Universal), base unit flag, and conversion multiplier</li>
+        <li>Implementation Types — name, description, active flag; used to categorize forms and projects</li>
+        <li>All reference data fully manageable through the Admin panel — no code changes required</li>
+      </ul>
+
+      <h3>Audit Log &amp; Compliance</h3>
+      <ul>
+        <li>Every user mutation across the entire platform is durably logged — creation, update, deletion, form submission, export, access grant/revoke, and profile changes</li>
+        <li>Snapshot pattern — audit entries are self-contained records that survive the deletion of the original entity</li>
+        <li>Admin audit log page — server-side filtered and paginated; filter by date range, user, role, action type, entity type, and project</li>
+        <li>Export audit results to CSV (up to 10,000 rows per export)</li>
+        <li>Per-project changelog tab visible to all stakeholders on a project</li>
+        <li>Portal history tab for customer-facing view — shows SuperCustomer and Customer actions only</li>
+        <li>All timestamps displayed in each user's configured IANA timezone</li>
+      </ul>
+
+      <h3>Security &amp; Access Control</h3>
+      <ul>
+        <li>JWT Bearer authentication with configurable issuer, audience, and signing key</li>
+        <li>ASP.NET Core Identity with bcrypt password hashing</li>
+        <li>Role-based authorization on every API endpoint and every frontend route</li>
+        <li>Project-level access control — users can only see and act on projects they are explicitly granted access to</li>
+        <li>Program-level CIS restrictions — specialists are scoped to only the programs they manage</li>
+        <li>Email change requires current password verification and forces re-authentication</li>
+        <li>All authentication events and profile changes are audit-logged</li>
+      </ul>
+    </section>
+
+    <!-- POTENTIAL INTEGRATIONS -->
+    <section id="integrations-potential">
+      <h2>Potential Integrations</h2>
+
+      <p>The platform is designed with integration in mind. The following integrations are either already built, actively planned, or natural candidates given the platform's architecture.</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h4>Salesforce CRM</h4>
+          <p>Bidirectional REST API integration. Pull Contact, Account, and Opportunity data to auto-populate the customer profile at wizard start. Push status changes and export completion events back to keep the CRM current without manual entry.</p>
+        </div>
+        <div class="feature-card">
+          <h4>QuickBooks</h4>
+          <p>File-based integration for both QuickBooks Desktop (IIF) and QuickBooks Online (CSV export). Customers export from QuickBooks and upload directly into the wizard's flexible import step — no OAuth app registration required.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Microsoft Excel / CSV</h4>
+          <p>Native import and export for any structured spreadsheet from any source — supplier price lists, ERP exports, legacy databases. Named column-mapping templates make recurring imports hands-free.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Azure Cloud Platform</h4>
+          <p>The platform is architected for Azure: App Service for the API, Azure Static Web Apps or Blob Storage for the React client, and Azure SQL for the database. All infrastructure-as-code ready for deployment.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Email / Notification Service</h4>
+          <p>Natural integration point for SendGrid, Mailgun, or Azure Communication Services — notify customers when a form is assigned, alert specialists when a form is submitted, or trigger reminders for stalled projects.</p>
+        </div>
+        <div class="feature-card">
+          <h4>ERP / Inventory Systems</h4>
+          <p>The validated XLSX export is structured for direct ingestion by inventory management and ERP platforms. Custom export formats can be configured per program to match any target system's import requirements.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Webhook / Event Hooks</h4>
+          <p>A planned integration layer for outbound webhooks — fire events to any downstream system when key milestones are reached: project created, form submitted, validation passed, export generated.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Single Sign-On (SSO)</h4>
+          <p>The ASP.NET Core Identity foundation supports adding OAuth2 / OpenID Connect providers — Microsoft Entra ID, Google Workspace, or any SAML-compatible identity provider — without changing the application's authorization model.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STACK -->
+    <section id="stack">
+      <h2>Technology</h2>
+
+      <p>The platform is built on a modern, proven technology stack. All components are open-source friendly, Azure-compatible, and selected for long-term maintainability.</p>
+
+      <div class="stack-grid">
+        <div class="stack-item">
+          <div>
+            <div class="s-label">Backend</div>
+            <div class="s-value">ASP.NET Core 8 (C#)</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">Frontend</div>
+            <div class="s-value">React 18 + TypeScript (Vite)</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">Database</div>
+            <div class="s-value">SQL Server with Full-Text Search</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">ORM</div>
+            <div class="s-value">Entity Framework Core 8</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">Authentication</div>
+            <div class="s-value">ASP.NET Identity + JWT Bearer</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">Excel / CSV</div>
+            <div class="s-value">ClosedXML + ExcelDataReader + CsvHelper</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">CRM</div>
+            <div class="s-value">Salesforce REST API (OAuth2)</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">Hosting (Target)</div>
+            <div class="s-value">Azure App Service + Azure SQL</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">Dev Environment</div>
+            <div class="s-value">Docker Compose (API + Client + SQL Server)</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div>
+            <div class="s-label">UI Components</div>
+            <div class="s-value">shadcn/ui + Tailwind CSS + Radix UI</div>
+          </div>
+        </div>
+      </div>
+
+      <p style="margin-top:8px">The frontend is a fully decoupled single-page application served as static files. The backend exposes a REST API. The two components can be scaled, deployed, and maintained independently.</p>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  &copy; 2026 Imp Wizard &mdash; Confidential &amp; Proprietary &mdash; All rights reserved
+</footer>
+
+</body>
+</html>

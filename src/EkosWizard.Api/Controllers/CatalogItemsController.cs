@@ -1,0 +1,563 @@
+using ImpWizard.Api.Services;
+using ImpWizard.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Text;
+
+namespace ImpWizard.Api.Controllers;
+
+[ApiController]
+[Route("api/catalog")]
+[Authorize(Roles = "Admin,CIS")]
+public class CatalogItemsController : ControllerBase
+{
+    private readonly AppDbContext _db;
+    private readonly IAuditService _audit;
+
+    public CatalogItemsController(AppDbContext db, IAuditService audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
+
+    // ── DTOs ──────────────────────────────────────────────────────────────────
+
+    public record ProductTypeRefDto(int Id, string Name);
+    public record FieldValueDto(int FieldId, string FieldName, string FieldLabel, string FieldType, string Value);
+
+    public record CatalogItemListDto(
+        int Id, string ItemName, bool IsActive, int SortOrder,
+        string? ItemType, string? ItemSubType,
+        string? Supplier, string? Vendor, string? VendorItemNumber,
+        string? PurchaseUomDescription, decimal? PurchaseAmountPerUom,
+        string? PurchaseUomName, string? PurchaseUomAbbreviation, string? UomType,
+        string? ProgramName, string? ProgramColor,
+        IEnumerable<string> ProductTypes);
+
+    public record CatalogItemDetailDto(
+        int Id, string ItemName, bool IsActive, int SortOrder,
+        int? ProgramId, string? ProgramName, string? ProgramColor,
+        int? CatalogItemTypeId, string? CatalogItemTypeName,
+        int? CatalogItemSubTypeId, string? CatalogItemSubTypeName,
+        int? SupplierId, string? SupplierName,
+        int? VendorId, string? VendorName,
+        string? VendorItemNumber,
+        string? PurchaseUomDescription, decimal? PurchaseAmountPerUom,
+        int? PurchaseUomId, string? PurchaseUomName, string? PurchaseUomAbbreviation, string? UomType,
+        IEnumerable<ProductTypeRefDto> ProductTypes,
+        IEnumerable<FieldValueDto> FieldValues);
+
+    public record PagedResult<T>(IEnumerable<T> Items, int TotalCount, int Page, int PageSize);
+
+    public record CreateCatalogItemRequest(
+        string ItemName,
+        int? ProgramId,
+        int? CatalogItemTypeId,
+        int? CatalogItemSubTypeId,
+        int? SupplierId,
+        int? VendorId,
+        string? VendorItemNumber,
+        string? PurchaseUomDescription,
+        decimal? PurchaseAmountPerUom,
+        int? PurchaseUomId,
+        int SortOrder = 0);
+
+    public record UpdateCatalogItemRequest(
+        string? ItemName,
+        bool? IsActive,
+        int? ProgramId,
+        int? CatalogItemTypeId,
+        int? CatalogItemSubTypeId,
+        int? SupplierId,
+        int? VendorId,
+        string? VendorItemNumber,
+        string? PurchaseUomDescription,
+        decimal? PurchaseAmountPerUom,
+        int? PurchaseUomId,
+        int? SortOrder);
+
+    public record BulkUpdateRequest(
+        int[] ItemIds,
+        int? ProgramId,           // null = no change; 0 = clear
+        int? CatalogItemTypeId,   // null = no change; 0 = clear
+        int? CatalogItemSubTypeId,
+        int? SupplierId,
+        int? VendorId,
+        bool? IsActive,
+        int[]? ProductTypeIds);   // null = no change; [] = clear all
+
+    public record SetFieldValuesRequest(IEnumerable<FieldValueUpsert> Values);
+    public record FieldValueUpsert(int FieldId, string Value);
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static CatalogItemListDto ToListDto(CatalogItem ci) => new(
+        ci.Id, ci.ItemName, ci.IsActive, ci.SortOrder,
+        ci.CatalogItemType?.Name,
+        ci.CatalogItemSubType?.Name,
+        ci.Supplier?.Name,
+        ci.Vendor?.Name,
+        ci.VendorItemNumber,
+        ci.PurchaseUomDescription,
+        ci.PurchaseAmountPerUom,
+        ci.PurchaseUom?.Name,
+        ci.PurchaseUom?.Abbreviation,
+        ci.PurchaseUom?.UnitCategory,
+        ci.Program?.Name,
+        ci.Program?.Color,
+        ci.ProductTypes.Select(pt => pt.Name));
+
+    private static CatalogItemDetailDto ToDetailDto(CatalogItem ci) => new(
+        ci.Id, ci.ItemName, ci.IsActive, ci.SortOrder,
+        ci.ProgramId, ci.Program?.Name, ci.Program?.Color,
+        ci.CatalogItemTypeId, ci.CatalogItemType?.Name,
+        ci.CatalogItemSubTypeId, ci.CatalogItemSubType?.Name,
+        ci.SupplierId, ci.Supplier?.Name,
+        ci.VendorId, ci.Vendor?.Name,
+        ci.VendorItemNumber,
+        ci.PurchaseUomDescription, ci.PurchaseAmountPerUom,
+        ci.PurchaseUomId, ci.PurchaseUom?.Name, ci.PurchaseUom?.Abbreviation, ci.PurchaseUom?.UnitCategory,
+        ci.ProductTypes.Select(pt => new ProductTypeRefDto(pt.Id, pt.Name)),
+        ci.FieldValues.Select(fv => new FieldValueDto(fv.CatalogItemTypeFieldId, fv.CatalogItemTypeField.FieldName, fv.CatalogItemTypeField.FieldLabel, fv.CatalogItemTypeField.FieldType, fv.Value)));
+
+    private IQueryable<CatalogItem> BuildQuery() =>
+        _db.CatalogItems
+            .Include(ci => ci.Program)
+            .Include(ci => ci.CatalogItemType)
+            .Include(ci => ci.CatalogItemSubType)
+            .Include(ci => ci.Supplier)
+            .Include(ci => ci.Vendor)
+            .Include(ci => ci.PurchaseUom)
+            .Include(ci => ci.ProductTypes)
+            .Include(ci => ci.FieldValues).ThenInclude(fv => fv.CatalogItemTypeField);
+
+    // ── Endpoints ─────────────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] int? programId,
+        [FromQuery] int? typeId,
+        [FromQuery] int? subTypeId,
+        [FromQuery] int? supplierId,
+        [FromQuery] int? vendorId,
+        [FromQuery] int? productTypeId,
+        [FromQuery] bool? isActive,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        pageSize = Math.Clamp(pageSize, 1, 200);
+        page = Math.Max(1, page);
+
+        var query = BuildQuery().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(ci => ci.ItemName.Contains(search));
+        if (isActive.HasValue)
+            query = query.Where(ci => ci.IsActive == isActive.Value);
+        else
+            query = query.Where(ci => ci.IsActive);
+        if (programId.HasValue)
+            query = query.Where(ci => ci.ProgramId == programId.Value);
+        if (typeId.HasValue)
+            query = query.Where(ci => ci.CatalogItemTypeId == typeId.Value);
+        if (subTypeId.HasValue)
+            query = query.Where(ci => ci.CatalogItemSubTypeId == subTypeId.Value);
+        if (supplierId.HasValue)
+            query = query.Where(ci => ci.SupplierId == supplierId.Value);
+        if (vendorId.HasValue)
+            query = query.Where(ci => ci.VendorId == vendorId.Value);
+        if (productTypeId.HasValue)
+            query = query.Where(ci => ci.ProductTypes.Any(pt => pt.Id == productTypeId.Value));
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderBy(ci => ci.ItemName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Ok(new PagedResult<CatalogItemListDto>(items.Select(ToListDto), totalCount, page, pageSize));
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var ci = await BuildQuery().FirstOrDefaultAsync(ci => ci.Id == id);
+        return ci is null ? NotFound() : Ok(ToDetailDto(ci));
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Create([FromBody] CreateCatalogItemRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.ItemName))
+            return BadRequest(new { message = "ItemName is required." });
+
+        var ci = new CatalogItem
+        {
+            ItemName = req.ItemName.Trim(),
+            ProgramId = req.ProgramId == 0 ? null : req.ProgramId,
+            CatalogItemTypeId = req.CatalogItemTypeId == 0 ? null : req.CatalogItemTypeId,
+            CatalogItemSubTypeId = req.CatalogItemSubTypeId == 0 ? null : req.CatalogItemSubTypeId,
+            SupplierId = req.SupplierId == 0 ? null : req.SupplierId,
+            VendorId = req.VendorId == 0 ? null : req.VendorId,
+            VendorItemNumber = req.VendorItemNumber?.Trim(),
+            PurchaseUomDescription = req.PurchaseUomDescription?.Trim(),
+            PurchaseAmountPerUom = req.PurchaseAmountPerUom,
+            PurchaseUomId = req.PurchaseUomId == 0 ? null : req.PurchaseUomId,
+            SortOrder = req.SortOrder,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        _db.CatalogItems.Add(ci);
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(User, "catalog_item.created", "CatalogItem", ci.Id.ToString(), ci.ItemName);
+
+        var result = await BuildQuery().FirstAsync(x => x.Id == ci.Id);
+        return CreatedAtAction(nameof(GetById), new { id = ci.Id }, ToDetailDto(result));
+    }
+
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateCatalogItemRequest req)
+    {
+        var ci = await BuildQuery().FirstOrDefaultAsync(ci => ci.Id == id);
+        if (ci is null) return NotFound();
+
+        if (req.ItemName is not null) ci.ItemName = req.ItemName.Trim();
+        if (req.IsActive is not null) ci.IsActive = req.IsActive.Value;
+        if (req.ProgramId is not null) ci.ProgramId = req.ProgramId == 0 ? null : req.ProgramId;
+        if (req.CatalogItemTypeId is not null) ci.CatalogItemTypeId = req.CatalogItemTypeId == 0 ? null : req.CatalogItemTypeId;
+        if (req.CatalogItemSubTypeId is not null) ci.CatalogItemSubTypeId = req.CatalogItemSubTypeId == 0 ? null : req.CatalogItemSubTypeId;
+        if (req.SupplierId is not null) ci.SupplierId = req.SupplierId == 0 ? null : req.SupplierId;
+        if (req.VendorId is not null) ci.VendorId = req.VendorId == 0 ? null : req.VendorId;
+        if (req.VendorItemNumber is not null) ci.VendorItemNumber = req.VendorItemNumber.Trim();
+        if (req.PurchaseUomDescription is not null) ci.PurchaseUomDescription = req.PurchaseUomDescription.Trim();
+        if (req.PurchaseAmountPerUom is not null) ci.PurchaseAmountPerUom = req.PurchaseAmountPerUom;
+        if (req.PurchaseUomId is not null) ci.PurchaseUomId = req.PurchaseUomId == 0 ? null : req.PurchaseUomId;
+        if (req.SortOrder is not null) ci.SortOrder = req.SortOrder.Value;
+        ci.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(User, "catalog_item.updated", "CatalogItem", ci.Id.ToString(), ci.ItemName);
+        var result = await BuildQuery().FirstAsync(x => x.Id == id);
+        return Ok(ToDetailDto(result));
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var ci = await _db.CatalogItems.FindAsync(id);
+        if (ci is null) return NotFound();
+        var name = ci.ItemName;
+        _db.CatalogItems.Remove(ci);
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(User, "catalog_item.deleted", "CatalogItem", id.ToString(), name);
+        return NoContent();
+    }
+
+    // ── Product Types ─────────────────────────────────────────────────────────
+
+    [HttpPut("{id:int}/product-types")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SetProductTypes(int id, [FromBody] int[] productTypeIds)
+    {
+        var ci = await _db.CatalogItems.Include(ci => ci.ProductTypes).FirstOrDefaultAsync(ci => ci.Id == id);
+        if (ci is null) return NotFound();
+
+        var productTypes = await _db.ProductTypes.Where(pt => productTypeIds.Contains(pt.Id)).ToListAsync();
+        ci.ProductTypes.Clear();
+        foreach (var pt in productTypes) ci.ProductTypes.Add(pt);
+        ci.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        var result = await BuildQuery().FirstAsync(x => x.Id == id);
+        return Ok(ToDetailDto(result));
+    }
+
+    // ── Custom Field Values ───────────────────────────────────────────────────
+
+    [HttpPut("{id:int}/field-values")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SetFieldValues(int id, [FromBody] SetFieldValuesRequest req)
+    {
+        var ci = await _db.CatalogItems.Include(ci => ci.FieldValues).FirstOrDefaultAsync(ci => ci.Id == id);
+        if (ci is null) return NotFound();
+
+        foreach (var upsert in req.Values)
+        {
+            var existing = ci.FieldValues.FirstOrDefault(fv => fv.CatalogItemTypeFieldId == upsert.FieldId);
+            if (existing is not null)
+            {
+                existing.Value = upsert.Value;
+            }
+            else
+            {
+                ci.FieldValues.Add(new CatalogItemFieldValue
+                {
+                    CatalogItemId = id,
+                    CatalogItemTypeFieldId = upsert.FieldId,
+                    Value = upsert.Value,
+                });
+            }
+        }
+        ci.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        var result = await BuildQuery().FirstAsync(x => x.Id == id);
+        return Ok(ToDetailDto(result));
+    }
+
+    // ── Bulk Update ───────────────────────────────────────────────────────────
+
+    [HttpPatch("bulk")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> BulkUpdate([FromBody] BulkUpdateRequest req)
+    {
+        if (req.ItemIds is null || req.ItemIds.Length == 0)
+            return BadRequest(new { message = "ItemIds is required." });
+
+        var items = await _db.CatalogItems
+            .Include(ci => ci.ProductTypes)
+            .Where(ci => req.ItemIds.Contains(ci.Id))
+            .ToListAsync();
+
+        ICollection<ProductType>? newProductTypes = null;
+        if (req.ProductTypeIds is not null)
+            newProductTypes = await _db.ProductTypes.Where(pt => req.ProductTypeIds.Contains(pt.Id)).ToListAsync();
+
+        foreach (var ci in items)
+        {
+            if (req.ProgramId is not null) ci.ProgramId = req.ProgramId == 0 ? null : req.ProgramId;
+            if (req.CatalogItemTypeId is not null) ci.CatalogItemTypeId = req.CatalogItemTypeId == 0 ? null : req.CatalogItemTypeId;
+            if (req.CatalogItemSubTypeId is not null) ci.CatalogItemSubTypeId = req.CatalogItemSubTypeId == 0 ? null : req.CatalogItemSubTypeId;
+            if (req.SupplierId is not null) ci.SupplierId = req.SupplierId == 0 ? null : req.SupplierId;
+            if (req.VendorId is not null) ci.VendorId = req.VendorId == 0 ? null : req.VendorId;
+            if (req.IsActive is not null) ci.IsActive = req.IsActive.Value;
+            if (newProductTypes is not null)
+            {
+                ci.ProductTypes.Clear();
+                foreach (var pt in newProductTypes) ci.ProductTypes.Add(pt);
+            }
+            ci.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(new { updated = items.Count });
+    }
+
+    // ── Import ────────────────────────────────────────────────────────────────
+
+    public record ImportItemSpec(
+        string ItemName,
+        string? ProgramName,
+        string? TypeName,
+        string? SubTypeName,
+        string? SupplierName,
+        string? VendorName,
+        string? VendorItemNumber,
+        string? PurchaseUomDescription,
+        decimal? PurchaseAmountPerUom,
+        string? PurchaseUomName,
+        bool? IsActive,
+        int? SortOrder,
+        IEnumerable<string>? ProductTypeNames,
+        IEnumerable<FieldValueUpsert>? FieldValues);
+
+    public record ImportResultDto(string ItemName, string Action, IEnumerable<string> Warnings);
+    public record ImportSummaryDto(IEnumerable<ImportResultDto> Results);
+
+    [HttpPost("import")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Import([FromBody] IEnumerable<ImportItemSpec> specs)
+    {
+        var allPrograms = await _db.Programs.ToListAsync();
+        var allTypes = await _db.CatalogItemTypes.Include(t => t.Fields).ToListAsync();
+        var allSubTypes = await _db.CatalogItemSubTypes.ToListAsync();
+        var allSuppliers = await _db.Suppliers.ToListAsync();
+        var allVendors = await _db.Vendors.ToListAsync();
+        var allUoms = await _db.UnitsOfMeasure.ToListAsync();
+        var allProductTypes = await _db.ProductTypes.ToListAsync();
+
+        var results = new List<ImportResultDto>();
+
+        foreach (var spec in specs)
+        {
+            if (string.IsNullOrWhiteSpace(spec.ItemName)) continue;
+            var name = spec.ItemName.Trim();
+            var warnings = new List<string>();
+
+            // Resolve foreign keys by name
+            int? programId = ResolveByName(allPrograms, spec.ProgramName, p => p.Name, p => p.Id, warnings, "Program");
+            int? typeId = ResolveByName(allTypes, spec.TypeName, t => t.Name, t => t.Id, warnings, "ItemType");
+            int? subTypeId = ResolveByName(allSubTypes, spec.SubTypeName, s => s.Name, s => s.Id, warnings, "SubType");
+            int? supplierId = ResolveByName(allSuppliers, spec.SupplierName, s => s.Name, s => s.Id, warnings, "Supplier");
+            int? vendorId = ResolveByName(allVendors, spec.VendorName, v => v.Name, v => v.Id, warnings, "Vendor");
+            int? uomId = ResolveByName(allUoms, spec.PurchaseUomName, u => u.Name, u => u.Id, warnings, "PurchaseUom");
+
+            // Match existing item by ItemName + VendorId
+            var existing = await _db.CatalogItems
+                .Include(ci => ci.ProductTypes)
+                .Include(ci => ci.FieldValues)
+                .FirstOrDefaultAsync(ci => ci.ItemName == name && ci.VendorId == vendorId);
+
+            string action;
+            if (existing is null)
+            {
+                var ci = new CatalogItem
+                {
+                    ItemName = name,
+                    ProgramId = programId,
+                    CatalogItemTypeId = typeId,
+                    CatalogItemSubTypeId = subTypeId,
+                    SupplierId = supplierId,
+                    VendorId = vendorId,
+                    VendorItemNumber = spec.VendorItemNumber?.Trim(),
+                    PurchaseUomDescription = spec.PurchaseUomDescription?.Trim(),
+                    PurchaseAmountPerUom = spec.PurchaseAmountPerUom,
+                    PurchaseUomId = uomId,
+                    IsActive = spec.IsActive ?? true,
+                    SortOrder = spec.SortOrder ?? 0,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                };
+
+                if (spec.ProductTypeNames is not null)
+                {
+                    foreach (var ptName in spec.ProductTypeNames)
+                    {
+                        var pt = allProductTypes.FirstOrDefault(p => p.Name.Equals(ptName, StringComparison.OrdinalIgnoreCase));
+                        if (pt is not null) ci.ProductTypes.Add(pt);
+                        else warnings.Add($"ProductType '{ptName}' not found.");
+                    }
+                }
+
+                if (spec.FieldValues is not null)
+                {
+                    foreach (var fv in spec.FieldValues)
+                        ci.FieldValues.Add(new CatalogItemFieldValue { CatalogItemTypeFieldId = fv.FieldId, Value = fv.Value });
+                }
+
+                _db.CatalogItems.Add(ci);
+                action = "created";
+            }
+            else
+            {
+                if (programId is not null) existing.ProgramId = programId;
+                if (typeId is not null) existing.CatalogItemTypeId = typeId;
+                if (subTypeId is not null) existing.CatalogItemSubTypeId = subTypeId;
+                if (supplierId is not null) existing.SupplierId = supplierId;
+                if (spec.VendorItemNumber is not null) existing.VendorItemNumber = spec.VendorItemNumber.Trim();
+                if (spec.PurchaseUomDescription is not null) existing.PurchaseUomDescription = spec.PurchaseUomDescription.Trim();
+                if (spec.PurchaseAmountPerUom is not null) existing.PurchaseAmountPerUom = spec.PurchaseAmountPerUom;
+                if (uomId is not null) existing.PurchaseUomId = uomId;
+                if (spec.IsActive is not null) existing.IsActive = spec.IsActive.Value;
+                if (spec.SortOrder is not null) existing.SortOrder = spec.SortOrder.Value;
+                existing.UpdatedAt = DateTime.UtcNow;
+
+                if (spec.ProductTypeNames is not null)
+                {
+                    existing.ProductTypes.Clear();
+                    foreach (var ptName in spec.ProductTypeNames)
+                    {
+                        var pt = allProductTypes.FirstOrDefault(p => p.Name.Equals(ptName, StringComparison.OrdinalIgnoreCase));
+                        if (pt is not null) existing.ProductTypes.Add(pt);
+                        else warnings.Add($"ProductType '{ptName}' not found.");
+                    }
+                }
+
+                if (spec.FieldValues is not null)
+                {
+                    foreach (var fv in spec.FieldValues)
+                    {
+                        var ev = existing.FieldValues.FirstOrDefault(v => v.CatalogItemTypeFieldId == fv.FieldId);
+                        if (ev is not null) ev.Value = fv.Value;
+                        else existing.FieldValues.Add(new CatalogItemFieldValue { CatalogItemTypeFieldId = fv.FieldId, Value = fv.Value });
+                    }
+                }
+
+                action = "updated";
+            }
+
+            results.Add(new(name, action, warnings));
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(new ImportSummaryDto(results));
+    }
+
+    private static int? ResolveByName<T>(
+        IEnumerable<T> list, string? name,
+        Func<T, string> nameSelector, Func<T, int> idSelector,
+        List<string> warnings, string entityLabel)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var match = list.FirstOrDefault(x => nameSelector(x).Equals(name.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (match is null) warnings.Add($"{entityLabel} '{name}' not found — skipped.");
+        return match is null ? null : idSelector(match);
+    }
+
+    // ── Export ────────────────────────────────────────────────────────────────
+
+    [HttpGet("export")]
+    public async Task<IActionResult> Export(
+        [FromQuery] string? search,
+        [FromQuery] int? programId,
+        [FromQuery] int? typeId,
+        [FromQuery] int? supplierId,
+        [FromQuery] int? vendorId,
+        [FromQuery] bool? isActive)
+    {
+        var query = BuildQuery().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(ci => ci.ItemName.Contains(search));
+        if (isActive.HasValue)
+            query = query.Where(ci => ci.IsActive == isActive.Value);
+        if (programId.HasValue)
+            query = query.Where(ci => ci.ProgramId == programId.Value);
+        if (typeId.HasValue)
+            query = query.Where(ci => ci.CatalogItemTypeId == typeId.Value);
+        if (supplierId.HasValue)
+            query = query.Where(ci => ci.SupplierId == supplierId.Value);
+        if (vendorId.HasValue)
+            query = query.Where(ci => ci.VendorId == vendorId.Value);
+
+        var items = await query.OrderBy(ci => ci.ItemName).ToListAsync();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("ItemName,ItemType,ItemSubType,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,UomType,Program,IsActive,SortOrder,ProductTypes");
+        foreach (var ci in items)
+        {
+            var productTypeNames = string.Join("|", ci.ProductTypes.Select(pt => pt.Name));
+            sb.AppendLine(string.Join(",",
+                CsvEscape(ci.ItemName),
+                CsvEscape(ci.CatalogItemType?.Name),
+                CsvEscape(ci.CatalogItemSubType?.Name),
+                CsvEscape(ci.Supplier?.Name),
+                CsvEscape(ci.Vendor?.Name),
+                CsvEscape(ci.VendorItemNumber),
+                CsvEscape(ci.PurchaseUomDescription),
+                ci.PurchaseAmountPerUom?.ToString() ?? "",
+                CsvEscape(ci.PurchaseUom?.Name),
+                CsvEscape(ci.PurchaseUom?.UnitCategory),
+                CsvEscape(ci.Program?.Name),
+                ci.IsActive.ToString(),
+                ci.SortOrder.ToString(),
+                CsvEscape(productTypeNames)));
+        }
+
+        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", "catalog.csv");
+    }
+
+    private static string CsvEscape(string? v)
+    {
+        if (v is null) return "";
+        if (v.Contains(',') || v.Contains('"') || v.Contains('\n'))
+            return $"\"{v.Replace("\"", "\"\"")}\"";
+        return v;
+    }
+}

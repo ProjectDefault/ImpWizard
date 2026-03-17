@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose:*)",
+      "Bash(find '/c/Users/User/Google Drive/EkosWizard/src/EkosWizard.Api/Controllers' -type f -name *.cs)",
+      "Bash(find '/c/Users/User/Google Drive/EkosWizard/src/EkosWizard.Core' -type f -name *.cs)",
+      "Bash(find '/c/Users/User/Google Drive/EkosWizard/src/EkosWizard.Infrastructure' -type f -name *.cs)",
+      "Read(//c/Users/User/.claude/projects/c--Users-User-Google-Drive-EkosWizard/73c22f5b-2183-4efb-b371-99c69a05c01d/tool-results/**)",
+      "Bash(sed 's/<[^>]*>//g')",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest add input label card badge separator avatar dropdown-menu dialog table sidebar sonner --yes)",
+      "Bash(npx tsc:*)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet ef:*)",
+      "Bash(dotnet tool:*)",
+      "Bash(dotnet-ef migrations:*)",
+      "Bash(where dotnet-ef:*)",
+      "Read(//c/Users/User/Google Drive/EkosWizard/$HOME/.dotnet/tools/**)",
+      "Read(//root/.dotnet/**)",
+      "Bash(\"/c/Users/User/.dotnet/tools/dotnet-ef.exe\" migrations:*)",
+      "Bash(curl -s -X POST http://localhost:8080/api/auth/login -H \"Content-Type: application/json\" -d '{\"\"login\"\":\"\"admin\"\",\"\"password\"\":\"\"Beer123!\"\"}')",
+      "Bash(curl -s -X POST http://localhost:8080/api/auth/login -H \"Content-Type: application/json\" -d \"{\"\"login\"\":\"\"admin\"\",\"\"password\"\":\"\"Beer123!\"\"}\")",
+      "Bash(node -e \":*)",
+      "Bash(npx shadcn@latest add select --yes)",
+      "Bash(/c/Users/User/.dotnet/tools/dotnet-ef.exe migrations:*)",
+      "Bash(npx shadcn@latest add collapsible switch --yes)",
+      "Bash(curl -s -X POST http://localhost:5173/api/auth/login -H \"Content-Type: application/json\" -d \"{\"\"login\"\":\"\"admin\"\",\"\"password\"\":\"\"Beer123!\"\"}\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxZDRlM2U4Ni0zNjkxLTRkNWQtODcxMy0xODVjMTk5ODY5ZDciLCJlbWFpbCI6ImFkbWluQGVrb3MubG9jYWwiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiYWRtaW4iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImZ1bGxOYW1lIjoiU3VwZXIgQWRtaW4iLCJleHAiOjE3NzMyMjY2ODksImlzcyI6IkVrb3NXaXphcmQiLCJhdWQiOiJFa29zV2l6YXJkIn0.ldXS5WXWRz_3yYGLTCrYLn4nqq4NGy2OTUJ7btLfEkM\")",
+      "Bash(curl -s http://localhost:5173/api/reference-data -H \"Authorization: Bearer $TOKEN\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\User\\.claude\\plans"
+    ]
+  }
+}
