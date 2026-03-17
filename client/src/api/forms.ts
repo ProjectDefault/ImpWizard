@@ -34,6 +34,7 @@ export interface FormFieldDto {
   dataSourceFormId: number | null
   dataSourceFieldId: number | null
   dataSourceFormName: string | null
+  importTemplateHeader: string | null
   createdAt: string
   updatedAt: string
 }
@@ -109,6 +110,8 @@ export interface UpdateFormFieldPayload {
   crossFormPreFillFieldId?: number | null
   dataSourceFormId?: number | null
   dataSourceFieldId?: number | null
+  importTemplateHeader?: string | null
+  clearImportTemplateHeader?: boolean
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────

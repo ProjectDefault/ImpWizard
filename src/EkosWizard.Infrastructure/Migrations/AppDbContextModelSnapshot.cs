@@ -239,6 +239,9 @@ namespace ImpWizard.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ImportTemplateHeader")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("LockedUntilFormId")
                         .HasColumnType("int");
 

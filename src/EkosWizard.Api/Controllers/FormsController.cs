@@ -40,6 +40,7 @@ public class FormsController : ControllerBase
         string LockScope, int? MaxLength,
         int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId, string? CrossFormPreFillFieldLabel,
         int? DataSourceFormId, int? DataSourceFieldId, string? DataSourceFormName,
+        string? ImportTemplateHeader,
         DateTime CreatedAt, DateTime UpdatedAt);
 
     public record FormDetailDto(
@@ -72,7 +73,9 @@ public class FormsController : ControllerBase
         int? CrossFormPreFillFormId = null,
         int? CrossFormPreFillFieldId = null,
         int? DataSourceFormId = null,
-        int? DataSourceFieldId = null);
+        int? DataSourceFieldId = null,
+        string? ImportTemplateHeader = null,
+        bool ClearImportTemplateHeader = false);
 
     public record ReorderRequest(int[] FieldIds);
 
@@ -94,6 +97,7 @@ public class FormsController : ControllerBase
             ff.LockScope, ff.MaxLength,
             ff.CrossFormPreFillFormId, ff.CrossFormPreFillFieldId, ff.CrossFormPreFillField?.Label,
             ff.DataSourceFormId, ff.DataSourceFieldId, ff.DataSourceForm?.Name,
+            ff.ImportTemplateHeader,
             ff.CreatedAt, ff.UpdatedAt);
 
     private static string? GetDataSourceName(FormField ff) => ff.DataSourceType switch
@@ -395,6 +399,8 @@ public class FormsController : ControllerBase
         if (req.CrossFormPreFillFieldId is not null) field.CrossFormPreFillFieldId = req.CrossFormPreFillFieldId == 0 ? null : req.CrossFormPreFillFieldId;
         if (req.DataSourceFormId is not null) field.DataSourceFormId = req.DataSourceFormId == 0 ? null : req.DataSourceFormId;
         if (req.DataSourceFieldId is not null) field.DataSourceFieldId = req.DataSourceFieldId == 0 ? null : req.DataSourceFieldId;
+        if (req.ClearImportTemplateHeader) field.ImportTemplateHeader = null;
+        else if (req.ImportTemplateHeader is not null) field.ImportTemplateHeader = req.ImportTemplateHeader.Trim().Length > 0 ? req.ImportTemplateHeader.Trim() : null;
         field.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

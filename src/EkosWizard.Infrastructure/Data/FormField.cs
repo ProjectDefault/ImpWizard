@@ -44,6 +44,9 @@ public class FormField
     /// <summary>Optional max character length for Text and Textarea fields. Null = no limit.</summary>
     public int? MaxLength { get; set; }
 
+    /// <summary>Override column header used in import templates. If null, falls back to Label.</summary>
+    public string? ImportTemplateHeader { get; set; }
+
     // ── Cross-form pre-fill ───────────────────────────────────────────────────
 
     /// <summary>When set, this field's default value is pulled from the most recent submitted answer

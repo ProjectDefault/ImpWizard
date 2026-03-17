@@ -64,7 +64,7 @@ public class ImportTemplateService
             }
             else
             {
-                existing.Header = ff.Label;
+                existing.Header = ff.ImportTemplateHeader?.Trim().Length > 0 ? ff.ImportTemplateHeader.Trim() : ff.Label;
                 existing.DataType = ff.FieldType;
                 existing.IsRequired = ff.IsRequired;
                 existing.MaxLength = ff.MaxLength;
@@ -115,7 +115,7 @@ public class ImportTemplateService
     private static ImportTemplateColumn MapFieldToColumn(FormField ff, int order) =>
         new()
         {
-            Header = ff.Label,
+            Header = ff.ImportTemplateHeader?.Trim().Length > 0 ? ff.ImportTemplateHeader.Trim() : ff.Label,
             DataType = ff.FieldType,
             IsRequired = ff.IsRequired,
             SortOrder = order,

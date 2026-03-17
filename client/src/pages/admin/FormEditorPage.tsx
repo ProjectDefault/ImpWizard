@@ -132,6 +132,7 @@ function FieldConfigPanel({
   const [maxLength, setMaxLength] = useState<number | null>(field.maxLength)
   const [preFillFormId, setPreFillFormId] = useState<number | null>(field.crossFormPreFillFormId)
   const [preFillFieldId, setPreFillFieldId] = useState<number | null>(field.crossFormPreFillFieldId)
+  const [importTemplateHeader, setImportTemplateHeader] = useState(field.importTemplateHeader ?? '')
 
   const { data: preFillSourceForm } = useQuery({
     queryKey: ['forms', preFillFormId],
@@ -161,7 +162,8 @@ function FieldConfigPanel({
     lockScope !== field.lockScope ||
     maxLength !== field.maxLength ||
     preFillFormId !== field.crossFormPreFillFormId ||
-    preFillFieldId !== field.crossFormPreFillFieldId
+    preFillFieldId !== field.crossFormPreFillFieldId ||
+    importTemplateHeader !== (field.importTemplateHeader ?? '')
 
   function handleSave() {
     if (!label.trim()) { toast.error('Label is required'); return }
@@ -179,6 +181,9 @@ function FieldConfigPanel({
       lockScope,
       crossFormPreFillFormId: !isDropdown ? (preFillFormId ?? 0) : 0,
       crossFormPreFillFieldId: !isDropdown ? (preFillFieldId ?? 0) : 0,
+      ...(importTemplateHeader.trim()
+        ? { importTemplateHeader: importTemplateHeader.trim() }
+        : { clearImportTemplateHeader: true }),
       ...(hasMaxLength
         ? maxLength != null ? { maxLength } : { clearMaxLength: true }
         : { clearMaxLength: true }),
@@ -222,6 +227,17 @@ function FieldConfigPanel({
           onChange={e => setLabel(e.target.value)}
           className="h-7 text-sm"
           autoFocus
+        />
+      </div>
+
+      {/* Import Template Header override */}
+      <div className="space-y-1">
+        <Label className="text-xs">Import Template Header <span className="text-muted-foreground">(optional override)</span></Label>
+        <Input
+          value={importTemplateHeader}
+          onChange={e => setImportTemplateHeader(e.target.value)}
+          placeholder={label || 'Same as label'}
+          className="h-7 text-sm"
         />
       </div>
 
