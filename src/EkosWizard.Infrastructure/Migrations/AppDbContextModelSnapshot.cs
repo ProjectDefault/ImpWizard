@@ -199,6 +199,18 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("CrossFormPreFillFieldId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CrossFormPreFillFormId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DataSourceFieldId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DataSourceFormId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("DataSourceId")
                         .HasColumnType("int");
 
@@ -240,6 +252,14 @@ namespace ImpWizard.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CrossFormPreFillFieldId");
+
+                    b.HasIndex("CrossFormPreFillFormId");
+
+                    b.HasIndex("DataSourceFieldId");
+
+                    b.HasIndex("DataSourceFormId");
 
                     b.HasIndex("FormId");
 
@@ -795,6 +815,22 @@ namespace ImpWizard.Infrastructure.Migrations
 
             modelBuilder.Entity("ImpWizard.Infrastructure.Data.FormField", b =>
                 {
+                    b.HasOne("ImpWizard.Infrastructure.Data.FormField", "CrossFormPreFillField")
+                        .WithMany()
+                        .HasForeignKey("CrossFormPreFillFieldId");
+
+                    b.HasOne("ImpWizard.Infrastructure.Data.Form", "CrossFormPreFillForm")
+                        .WithMany()
+                        .HasForeignKey("CrossFormPreFillFormId");
+
+                    b.HasOne("ImpWizard.Infrastructure.Data.FormField", "DataSourceField")
+                        .WithMany()
+                        .HasForeignKey("DataSourceFieldId");
+
+                    b.HasOne("ImpWizard.Infrastructure.Data.Form", "DataSourceForm")
+                        .WithMany()
+                        .HasForeignKey("DataSourceFormId");
+
                     b.HasOne("ImpWizard.Infrastructure.Data.Form", "Form")
                         .WithMany("Fields")
                         .HasForeignKey("FormId")
@@ -804,6 +840,14 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.HasOne("ImpWizard.Infrastructure.Data.Form", "LockedUntilForm")
                         .WithMany()
                         .HasForeignKey("LockedUntilFormId");
+
+                    b.Navigation("CrossFormPreFillField");
+
+                    b.Navigation("CrossFormPreFillForm");
+
+                    b.Navigation("DataSourceField");
+
+                    b.Navigation("DataSourceForm");
 
                     b.Navigation("Form");
 
