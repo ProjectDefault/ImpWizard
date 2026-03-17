@@ -120,6 +120,18 @@ function SortableItemRow({
               <div className="mt-1.5">
                 <p className="text-xs text-muted-foreground mb-1">Product Types</p>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 rounded"
+                      checked={allProductTypes.every(pt => editItem.productTypeIds.includes(pt.id))}
+                      onChange={e => {
+                        const ids = e.target.checked ? allProductTypes.map(pt => pt.id) : []
+                        setEditItem({ ...editItem, productTypeIds: ids })
+                      }}
+                    />
+                    Select All
+                  </label>
                   {allProductTypes.map(pt => (
                     <label key={pt.id} className="flex items-center gap-1.5 cursor-pointer text-xs">
                       <input
@@ -854,6 +866,19 @@ export default function ReferenceDataPage() {
                     <div className="py-2 border-b space-y-1.5">
                       <Label className="text-sm">Product Types</Label>
                       <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-sm font-medium">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded"
+                            checked={allProductTypes.every(pt => dataset.productTypes.some(dpt => dpt.id === pt.id))}
+                            disabled={setDataSetProductTypesMutation.isPending}
+                            onChange={e => {
+                              const newIds = e.target.checked ? allProductTypes.map(pt => pt.id) : []
+                              setDataSetProductTypesMutation.mutate({ dataSetId: dataset.id, productTypeIds: newIds })
+                            }}
+                          />
+                          Select All
+                        </label>
                         {allProductTypes.map(pt => (
                           <label key={pt.id} className="flex items-center gap-1.5 cursor-pointer text-sm">
                             <input
