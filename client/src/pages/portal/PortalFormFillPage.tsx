@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
@@ -10,14 +10,151 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import {
   getFormDetail,
   getFormSubmission,
   saveFormDraft,
   submitForm,
+  getCrossFormPrefill,
+  getCrossFormDropdown,
   type FormFieldForFillDto,
 } from '@/api/portal'
+
+// ── Per-field renderer (component so it can use hooks) ─────────────────────────
+
+interface FieldRendererProps {
+  field: FormFieldForFillDto
+  value: string
+  onChange: (value: string) => void
+  isReadOnly: boolean
+  projectId: number
+  hasExistingSubmission: boolean
+}
+
+function PortalFieldRenderer({
+  field,
+  value,
+  onChange,
+  isReadOnly,
+  projectId,
+  hasExistingSubmission,
+}: FieldRendererProps) {
+  const preFillApplied = useRef(false)
+
+  // Cross-form pre-fill — only when no existing submission and field is configured
+  const { data: preFillData } = useQuery({
+    queryKey: ['cross-form-prefill', projectId, field.crossFormPreFillFormId, field.crossFormPreFillFieldId],
+    queryFn: () => getCrossFormPrefill(projectId, field.crossFormPreFillFormId!, field.crossFormPreFillFieldId!),
+    enabled: !hasExistingSubmission && field.crossFormPreFillFormId != null && field.crossFormPreFillFieldId != null,
+  })
+
+  useEffect(() => {
+    if (!preFillApplied.current && preFillData?.value != null) {
+      preFillApplied.current = true
+      onChange(preFillData.value)
+    }
+  }, [preFillData, onChange])
+
+  // ProjectSubmission dropdown options
+  const { data: dropdownOptions = [], isLoading: optionsLoading } = useQuery({
+    queryKey: ['cross-form-dropdown', projectId, field.dataSourceFormId, field.dataSourceFieldId],
+    queryFn: () => getCrossFormDropdown(projectId, field.dataSourceFormId!, field.dataSourceFieldId!),
+    enabled:
+      field.fieldType === 'Dropdown' &&
+      field.dataSourceType === 'ProjectSubmission' &&
+      field.dataSourceFormId != null &&
+      field.dataSourceFieldId != null,
+  })
+
+  // Read-only display
+  if (isReadOnly) {
+    return (
+      <div className="text-sm bg-muted/40 rounded px-3 py-2 min-h-[36px]">
+        {field.fieldType === 'Checkbox'
+          ? (value === 'true' ? 'Yes' : 'No')
+          : value || <span className="text-muted-foreground italic">No answer</span>}
+      </div>
+    )
+  }
+
+  // ProjectSubmission dropdown
+  if (field.fieldType === 'Dropdown' && field.dataSourceType === 'ProjectSubmission') {
+    const noOptions = !optionsLoading && dropdownOptions.length === 0
+    return (
+      <Select value={value} onValueChange={onChange} disabled={optionsLoading || noOptions}>
+        <SelectTrigger>
+          <SelectValue
+            placeholder={
+              optionsLoading
+                ? 'Loading...'
+                : noOptions
+                ? 'No options available yet'
+                : 'Select...'
+            }
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {dropdownOptions.map(opt => (
+            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  switch (field.fieldType) {
+    case 'Textarea':
+      return (
+        <Textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          maxLength={field.maxLength ?? undefined}
+          rows={3}
+        />
+      )
+    case 'Number':
+      return (
+        <Input
+          type="number"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+        />
+      )
+    case 'Date':
+      return (
+        <Input
+          type="date"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+        />
+      )
+    case 'Checkbox':
+      return (
+        <div className="flex items-center gap-2 pt-1">
+          <Checkbox
+            id={`field-${field.id}`}
+            checked={value === 'true'}
+            onCheckedChange={checked => onChange(checked ? 'true' : 'false')}
+          />
+          <label htmlFor={`field-${field.id}`} className="text-sm cursor-pointer">
+            {field.label}
+          </label>
+        </div>
+      )
+    default: // Text, Dropdown (non-ProjectSubmission)
+      return (
+        <Input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          maxLength={field.maxLength ?? undefined}
+        />
+      )
+  }
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function PortalFormFillPage() {
   const { projectId, assignmentId } = useParams<{ projectId: string; assignmentId: string }>()
@@ -25,7 +162,6 @@ export default function PortalFormFillPage() {
   const pid = Number(projectId)
   const aid = Number(assignmentId)
 
-  // answers keyed by fieldId
   const [answers, setAnswers] = useState<Record<number, string>>({})
 
   const { data: form, isLoading: formLoading } = useQuery({
@@ -38,7 +174,7 @@ export default function PortalFormFillPage() {
     queryKey: ['portal-form-submission', pid, aid],
     queryFn: () => getFormSubmission(pid, aid),
     enabled: !!pid && !!aid,
-    retry: false, // 404 is fine — no submission yet
+    retry: false,
   })
 
   // Pre-fill answers from existing submission
@@ -77,69 +213,6 @@ export default function PortalFormFillPage() {
 
   function setAnswer(fieldId: number, value: string) {
     setAnswers(prev => ({ ...prev, [fieldId]: value }))
-  }
-
-  function renderField(field: FormFieldForFillDto) {
-    const value = answers[field.id] ?? ''
-
-    if (isReadOnly) {
-      return (
-        <div className="text-sm bg-muted/40 rounded px-3 py-2 min-h-[36px]">
-          {field.fieldType === 'Checkbox'
-            ? (value === 'true' ? 'Yes' : 'No')
-            : value || <span className="text-muted-foreground italic">No answer</span>}
-        </div>
-      )
-    }
-
-    switch (field.fieldType) {
-      case 'Textarea':
-        return (
-          <Textarea
-            value={value}
-            onChange={e => setAnswer(field.id, e.target.value)}
-            maxLength={field.maxLength ?? undefined}
-            rows={3}
-          />
-        )
-      case 'Number':
-        return (
-          <Input
-            type="number"
-            value={value}
-            onChange={e => setAnswer(field.id, e.target.value)}
-          />
-        )
-      case 'Date':
-        return (
-          <Input
-            type="date"
-            value={value}
-            onChange={e => setAnswer(field.id, e.target.value)}
-          />
-        )
-      case 'Checkbox':
-        return (
-          <div className="flex items-center gap-2 pt-1">
-            <Checkbox
-              id={`field-${field.id}`}
-              checked={value === 'true'}
-              onCheckedChange={checked => setAnswer(field.id, checked ? 'true' : 'false')}
-            />
-            <label htmlFor={`field-${field.id}`} className="text-sm cursor-pointer">
-              {field.label}
-            </label>
-          </div>
-        )
-      default: // Text, Dropdown
-        return (
-          <Input
-            value={value}
-            onChange={e => setAnswer(field.id, e.target.value)}
-            maxLength={field.maxLength ?? undefined}
-          />
-        )
-    }
   }
 
   const isLoading = formLoading || subLoading
@@ -198,7 +271,14 @@ export default function PortalFormFillPage() {
                     {field.isRequired && <span className="text-destructive ml-1">*</span>}
                   </Label>
                 )}
-                {renderField(field)}
+                <PortalFieldRenderer
+                  field={field}
+                  value={answers[field.id] ?? ''}
+                  onChange={v => setAnswer(field.id, v)}
+                  isReadOnly={isReadOnly}
+                  projectId={pid}
+                  hasExistingSubmission={!!submission}
+                />
                 {field.maxLength && field.fieldType !== 'Checkbox' && !isReadOnly && (
                   <p className="text-xs text-muted-foreground text-right">
                     {(answers[field.id] ?? '').length} / {field.maxLength}
