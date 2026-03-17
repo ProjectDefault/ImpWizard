@@ -1,20 +1,28 @@
 # EkosWizard — Development Guidelines
 
-## GitHub — Commit and Push After Every Session
+## Deployment — Commit, Push, and Rebuild Docker After Every Session
 
-After completing any meaningful change, always commit and push to GitHub:
+After completing any meaningful change, always commit, push to GitHub, and rebuild the Docker containers:
 
 ```bash
 cd "C:\Users\User\Google Drive\EkosWizard"
 git add .
 git commit -m "Brief description of what changed"
 git push
+docker compose up -d --build client
+```
+
+If backend (API) code changed, rebuild both:
+
+```bash
+docker compose up -d --build client api
 ```
 
 - Commit after every feature, fix, or significant edit — don't batch up days of work
 - Use a clear commit message describing what changed (e.g. "Add CIS program filtering to AuditController", "Fix timezone dropdown clipping")
 - The GitHub remote is: `https://github.com/ProjectDefault/ImpWizard.git`
 - Branch: `main`
+- Docker images are built from a snapshot at build time — changes are **not** live until the container is rebuilt
 
 ## Security is a Top Priority
 
