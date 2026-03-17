@@ -113,13 +113,26 @@ export interface ProjectSubmissionAnswerDto {
   value: string
 }
 
+export interface ProjectSubmissionRowDto {
+  submissionId: number
+  submittedByName: string | null
+  submittedAt: string | null
+  answers: ProjectSubmissionAnswerDto[]
+}
+
+export interface ProjectSubmissionFormDto {
+  formId: number
+  formName: string
+  submissions: ProjectSubmissionRowDto[]
+}
+
 export const getCrossFormPrefill = (projectId: number, sourceFormId: number, sourceFieldId: number): Promise<{ value: string | null }> =>
   api.get(`/portal/projects/${projectId}/cross-form-data`, { params: { sourceFormId, sourceFieldId, mode: 'prefill' } }).then(r => r.data)
 
 export const getCrossFormDropdown = (projectId: number, sourceFormId: number, sourceFieldId: number): Promise<string[]> =>
   api.get(`/portal/projects/${projectId}/cross-form-data`, { params: { sourceFormId, sourceFieldId, mode: 'dropdown' } }).then(r => r.data)
 
-export const getProjectSubmissionData = (projectId: number) =>
+export const getProjectSubmissionData = (projectId: number): Promise<ProjectSubmissionFormDto[]> =>
   api.get(`/portal/projects/${projectId}/submission-data`).then(r => r.data)
 
 export const updateSubmissionAnswer = (projectId: number, answerId: number, value: string): Promise<{ id: number; value: string }> =>

@@ -36,6 +36,11 @@ import {
 import type {
   ProjectMeetingDto, ProjectResourceDto, ProjectFormAssignmentDto, ProjectUserAccessDto
 } from '@/api/projectPortal'
+import {
+  getProjectSubmissionData,
+  updateSubmissionAnswer,
+} from '@/api/portal'
+import type { ProjectSubmissionFormDto } from '@/api/portal'
 
 const statusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   Complete: 'default',
@@ -107,6 +112,9 @@ export default function ProjectDetailPage() {
   const [accessSheetOpen, setAccessSheetOpen] = useState(false)
   const [accessForm, setAccessForm] = useState({ userId: '', role: 'Customer' })
 
+  // ── Submissions tab state ─────────────────────────────────────────────────
+  const [editingCell, setEditingCell] = useState<{ answerId: number; value: string } | null>(null)
+
   // ── Queries ───────────────────────────────────────────────────────────────
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'],
@@ -175,6 +183,12 @@ export default function ProjectDetailPage() {
     queryKey: ['project-changelog', pid],
     queryFn: () => getProjectChangelog(pid),
     enabled: activeTab === 'changelog',
+  })
+
+  const { data: submissionData = [], isLoading: submissionDataLoading } = useQuery({
+    queryKey: ['project-submission-data', pid],
+    queryFn: () => getProjectSubmissionData(pid),
+    enabled: activeTab === 'submissions',
   })
 
   const { data: profile } = useQuery({
@@ -347,6 +361,17 @@ export default function ProjectDetailPage() {
     onError: () => toast.error('Failed to revoke access.'),
   })
 
+  const updateAnswerMutation = useMutation({
+    mutationFn: ({ answerId, value }: { answerId: number; value: string }) =>
+      updateSubmissionAnswer(pid, answerId, value),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project-submission-data', pid] })
+      setEditingCell(null)
+      toast.success('Answer updated.')
+    },
+    onError: () => toast.error('Failed to update answer.'),
+  })
+
   // ── Helper: open meeting sheet ─────────────────────────────────────────────
   function openCreateMeeting() {
     setEditingMeeting(null)
@@ -504,6 +529,7 @@ export default function ProjectDetailPage() {
           <TabsTrigger value="resources">Resources</TabsTrigger>
           <TabsTrigger value="forms">Forms</TabsTrigger>
           <TabsTrigger value="access">Access</TabsTrigger>
+          <TabsTrigger value="submissions">Submissions</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="changelog">Changelog</TabsTrigger>
         </TabsList>
@@ -994,6 +1020,88 @@ export default function ProjectDetailPage() {
                   </Table>
                 )}
               </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Submissions Tab ──────────────────────────────────────────────── */}
+        <TabsContent value="submissions" className="pt-4">
+          {submissionDataLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+            </div>
+          ) : submissionData.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No form submissions yet for this project.</div>
+          ) : (
+            <div className="space-y-6">
+              {submissionData.map((formBlock: ProjectSubmissionFormDto) => {
+                // Collect all unique field labels in order
+                const fieldLabels = formBlock.submissions.length > 0
+                  ? formBlock.submissions[0].answers.map(a => a.fieldLabel)
+                  : []
+                return (
+                  <div key={formBlock.formId} className="rounded-md border">
+                    <div className="px-4 py-2 border-b bg-muted/30">
+                      <p className="text-sm font-medium">{formBlock.formName}</p>
+                      <p className="text-xs text-muted-foreground">{formBlock.submissions.length} submission{formBlock.submissions.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    {formBlock.submissions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground px-4 py-3">No submissions yet.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs whitespace-nowrap">Submitted By</TableHead>
+                              <TableHead className="text-xs whitespace-nowrap">Date</TableHead>
+                              {fieldLabels.map(label => (
+                                <TableHead key={label} className="text-xs whitespace-nowrap">{label}</TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {formBlock.submissions.map(row => (
+                              <TableRow key={row.submissionId}>
+                                <TableCell className="text-sm whitespace-nowrap">{row.submittedByName ?? '—'}</TableCell>
+                                <TableCell className="text-sm whitespace-nowrap">
+                                  {row.submittedAt ? new Date(row.submittedAt).toLocaleDateString() : '—'}
+                                </TableCell>
+                                {row.answers.map(answer => (
+                                  <TableCell key={answer.answerId} className="text-sm">
+                                    {editingCell?.answerId === answer.answerId ? (
+                                      <div className="flex items-center gap-1">
+                                        <Input
+                                          className="h-7 text-sm w-40"
+                                          value={editingCell.value}
+                                          autoFocus
+                                          onChange={e => setEditingCell({ answerId: answer.answerId, value: e.target.value })}
+                                          onKeyDown={e => {
+                                            if (e.key === 'Enter') updateAnswerMutation.mutate({ answerId: answer.answerId, value: editingCell.value })
+                                            if (e.key === 'Escape') setEditingCell(null)
+                                          }}
+                                          onBlur={() => updateAnswerMutation.mutate({ answerId: answer.answerId, value: editingCell.value })}
+                                        />
+                                        {updateAnswerMutation.isPending && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
+                                      </div>
+                                    ) : (
+                                      <button
+                                        className="text-left hover:underline decoration-dotted underline-offset-2 cursor-pointer min-w-[60px]"
+                                        onClick={() => setEditingCell({ answerId: answer.answerId, value: answer.value })}
+                                      >
+                                        {answer.value || <span className="text-muted-foreground italic">—</span>}
+                                      </button>
+                                    )}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </TabsContent>
