@@ -114,6 +114,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
              .WithMany()
              .HasForeignKey(ff => ff.LockedUntilFormId)
              .OnDelete(DeleteBehavior.ClientSetNull);
+
+            e.HasOne(ff => ff.CrossFormPreFillForm)
+             .WithMany()
+             .HasForeignKey(ff => ff.CrossFormPreFillFormId)
+             .OnDelete(DeleteBehavior.ClientSetNull);
+
+            e.HasOne(ff => ff.CrossFormPreFillField)
+             .WithMany()
+             .HasForeignKey(ff => ff.CrossFormPreFillFieldId)
+             .OnDelete(DeleteBehavior.ClientSetNull);
+
+            e.HasOne(ff => ff.DataSourceForm)
+             .WithMany()
+             .HasForeignKey(ff => ff.DataSourceFormId)
+             .OnDelete(DeleteBehavior.ClientSetNull);
+
+            e.HasOne(ff => ff.DataSourceField)
+             .WithMany()
+             .HasForeignKey(ff => ff.DataSourceFieldId)
+             .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         builder.Entity<ImportTemplate>(e =>

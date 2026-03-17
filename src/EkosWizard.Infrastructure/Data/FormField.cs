@@ -3,7 +3,7 @@ namespace ImpWizard.Infrastructure.Data;
 /// <summary>
 /// A single field/column definition on a Form.
 /// FieldType: Text | Number | Date | Dropdown | Checkbox | Textarea
-/// DataSourceType: None | ReferenceData | ProductType | UnitOfMeasure | Category
+/// DataSourceType: None | ReferenceData | ProductType | UnitOfMeasure | Category | ProjectSubmission
 /// LockScope: Field | EntireForm
 /// </summary>
 public class FormField
@@ -43,6 +43,24 @@ public class FormField
 
     /// <summary>Optional max character length for Text and Textarea fields. Null = no limit.</summary>
     public int? MaxLength { get; set; }
+
+    // ── Cross-form pre-fill ───────────────────────────────────────────────────
+
+    /// <summary>When set, this field's default value is pulled from the most recent submitted answer
+    /// for CrossFormPreFillFieldId on the same project.</summary>
+    public int? CrossFormPreFillFormId { get; set; }
+    public Form? CrossFormPreFillForm { get; set; }
+    public int? CrossFormPreFillFieldId { get; set; }
+    public FormField? CrossFormPreFillField { get; set; }
+
+    // ── Cross-form dropdown (DataSourceType = "ProjectSubmission") ────────────
+
+    /// <summary>When DataSourceType = "ProjectSubmission", dropdown options are all distinct submitted
+    /// answers for DataSourceFieldId on the same project.</summary>
+    public int? DataSourceFormId { get; set; }
+    public Form? DataSourceForm { get; set; }
+    public int? DataSourceFieldId { get; set; }
+    public FormField? DataSourceField { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

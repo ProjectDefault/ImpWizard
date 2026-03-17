@@ -57,7 +57,22 @@ public class PortalController : ControllerBase
 
     public record FormFieldForFillDto(
         int Id, string Label, string FieldType, bool IsRequired, int SortOrder,
-        string DataSourceType, int? DataSourceId, int? MaxLength);
+        string DataSourceType, int? DataSourceId, int? MaxLength,
+        int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId,
+        int? DataSourceFormId, int? DataSourceFieldId);
+
+    public record ProjectSubmissionFormDto(
+        int FormId, string FormName,
+        IEnumerable<ProjectSubmissionRowDto> Submissions);
+
+    public record ProjectSubmissionRowDto(
+        int SubmissionId, string? SubmittedByName, DateTime? SubmittedAt,
+        IEnumerable<ProjectSubmissionAnswerDto> Answers);
+
+    public record ProjectSubmissionAnswerDto(
+        int AnswerId, int FieldId, string FieldLabel, string Value);
+
+    public record UpdateAnswerRequest(string Value);
 
     public record SaveDraftRequest(IEnumerable<AnswerInput> Answers);
     public record AnswerInput(int FormFieldId, string Value);
@@ -456,7 +471,9 @@ public class PortalController : ControllerBase
                 .OrderBy(f => f.SortOrder)
                 .Select(f => new FormFieldForFillDto(
                     f.Id, f.Label, f.FieldType, f.IsRequired, f.SortOrder,
-                    f.DataSourceType, f.DataSourceId, f.MaxLength)));
+                    f.DataSourceType, f.DataSourceId, f.MaxLength,
+                    f.CrossFormPreFillFormId, f.CrossFormPreFillFieldId,
+                    f.DataSourceFormId, f.DataSourceFieldId)));
 
         return Ok(formDto);
     }
@@ -704,5 +721,123 @@ public class PortalController : ControllerBase
         });
         await _db.SaveChangesAsync();
         return Ok();
+    }
+
+    // ── Cross-form data endpoints ──────────────────────────────────────────────
+
+    // GET /api/portal/projects/{id}/cross-form-data?sourceFormId=X&sourceFieldId=Y&mode=prefill|dropdown
+    [HttpGet("projects/{id:int}/cross-form-data")]
+    public async Task<IActionResult> GetCrossFormData(
+        int id,
+        [FromQuery] int sourceFormId,
+        [FromQuery] int sourceFieldId,
+        [FromQuery] string mode = "prefill")
+    {
+        if (!await CanAccessProject(id)) return Forbid();
+
+        // IDOR: verify the source field belongs to the source form
+        var fieldExists = await _db.FormFields
+            .AnyAsync(f => f.Id == sourceFieldId && f.FormId == sourceFormId && !f.IsArchived);
+        if (!fieldExists)
+            return BadRequest(new { message = "Source field does not belong to source form." });
+
+        if (mode == "prefill")
+        {
+            var value = await _db.FormSubmissionAnswers
+                .Where(a =>
+                    a.FormFieldId == sourceFieldId &&
+                    a.FormSubmission.Status == "Submitted" &&
+                    a.FormSubmission.ProjectFormAssignment.ProjectId == id &&
+                    a.FormSubmission.ProjectFormAssignment.FormId == sourceFormId)
+                .OrderByDescending(a => a.FormSubmission.SubmittedAt)
+                .Select(a => a.Value)
+                .FirstOrDefaultAsync();
+
+            return Ok(new { value });
+        }
+        else if (mode == "dropdown")
+        {
+            var values = await _db.FormSubmissionAnswers
+                .Where(a =>
+                    a.FormFieldId == sourceFieldId &&
+                    a.FormSubmission.Status == "Submitted" &&
+                    a.FormSubmission.ProjectFormAssignment.ProjectId == id &&
+                    a.FormSubmission.ProjectFormAssignment.FormId == sourceFormId &&
+                    !string.IsNullOrEmpty(a.Value))
+                .Select(a => a.Value)
+                .Distinct()
+                .OrderBy(v => v)
+                .ToListAsync();
+
+            return Ok(values);
+        }
+
+        return BadRequest(new { message = "Invalid mode. Use 'prefill' or 'dropdown'." });
+    }
+
+    // GET /api/portal/projects/{id}/submission-data  (Admin/CIS only)
+    [HttpGet("projects/{id:int}/submission-data")]
+    public async Task<IActionResult> GetProjectSubmissionData(int id)
+    {
+        if (!IsAdminOrCis()) return Forbid();
+        if (!await CanAccessProject(id)) return Forbid();
+
+        var submissions = await _db.FormSubmissions
+            .Where(s =>
+                s.Status == "Submitted" &&
+                s.ProjectFormAssignment.ProjectId == id)
+            .Include(s => s.ProjectFormAssignment)
+                .ThenInclude(a => a.Form)
+                    .ThenInclude(f => f.Fields.Where(ff => !ff.IsArchived))
+            .Include(s => s.Answers)
+            .Include(s => s.SubmittedBy)
+            .OrderBy(s => s.ProjectFormAssignment.Form.Name)
+            .ThenByDescending(s => s.SubmittedAt)
+            .ToListAsync();
+
+        var grouped = submissions
+            .GroupBy(s => s.ProjectFormAssignment.Form)
+            .Select(g => new ProjectSubmissionFormDto(
+                g.Key.Id,
+                g.Key.Name,
+                g.Select(s => new ProjectSubmissionRowDto(
+                    s.Id,
+                    s.SubmittedBy?.FullName,
+                    s.SubmittedAt,
+                    s.Answers.Select(a =>
+                    {
+                        var field = g.Key.Fields.FirstOrDefault(f => f.Id == a.FormFieldId);
+                        return new ProjectSubmissionAnswerDto(
+                            a.Id, a.FormFieldId, field?.Label ?? "", a.Value);
+                    })
+                    .OrderBy(a => g.Key.Fields.FirstOrDefault(f => f.Id == a.FieldId)?.SortOrder ?? 0)
+                ))));
+
+        return Ok(grouped);
+    }
+
+    // PUT /api/portal/projects/{id}/submission-data/{answerId}  (Admin/CIS only)
+    [HttpPut("projects/{id:int}/submission-data/{answerId:int}")]
+    public async Task<IActionResult> UpdateSubmissionAnswer(int id, int answerId, [FromBody] UpdateAnswerRequest req)
+    {
+        if (!IsAdminOrCis()) return Forbid();
+
+        // IDOR: verify the answer belongs to a submission on this project
+        var answer = await _db.FormSubmissionAnswers
+            .Include(a => a.FormSubmission)
+                .ThenInclude(s => s.ProjectFormAssignment)
+            .FirstOrDefaultAsync(a =>
+                a.Id == answerId &&
+                a.FormSubmission.ProjectFormAssignment.ProjectId == id);
+
+        if (answer is null) return NotFound();
+
+        answer.Value = req.Value;
+        await _db.SaveChangesAsync();
+
+        await _audit.LogAsync(User, "submission.answer.edited", "FormSubmissionAnswer",
+            answerId.ToString(), null, projectId: id, detail: $"Answer {answerId} updated to '{req.Value}'");
+
+        return Ok(new { id = answer.Id, value = answer.Value });
     }
 }
