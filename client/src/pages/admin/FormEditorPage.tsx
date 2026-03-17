@@ -133,6 +133,7 @@ function FieldConfigPanel({
   const [preFillFormId, setPreFillFormId] = useState<number | null>(field.crossFormPreFillFormId)
   const [preFillFieldId, setPreFillFieldId] = useState<number | null>(field.crossFormPreFillFieldId)
   const [importTemplateHeader, setImportTemplateHeader] = useState(field.importTemplateHeader ?? '')
+  const [allowCustomValue, setAllowCustomValue] = useState(field.allowCustomValue)
 
   const { data: preFillSourceForm } = useQuery({
     queryKey: ['forms', preFillFormId],
@@ -163,7 +164,8 @@ function FieldConfigPanel({
     maxLength !== field.maxLength ||
     preFillFormId !== field.crossFormPreFillFormId ||
     preFillFieldId !== field.crossFormPreFillFieldId ||
-    importTemplateHeader !== (field.importTemplateHeader ?? '')
+    importTemplateHeader !== (field.importTemplateHeader ?? '') ||
+    allowCustomValue !== field.allowCustomValue
 
   function handleSave() {
     if (!label.trim()) { toast.error('Label is required'); return }
@@ -181,6 +183,7 @@ function FieldConfigPanel({
       lockScope,
       crossFormPreFillFormId: !isDropdown ? (preFillFormId ?? 0) : 0,
       crossFormPreFillFieldId: !isDropdown ? (preFillFieldId ?? 0) : 0,
+      allowCustomValue: isDropdown ? allowCustomValue : false,
       ...(importTemplateHeader.trim()
         ? { importTemplateHeader: importTemplateHeader.trim() }
         : { clearImportTemplateHeader: true }),
@@ -197,6 +200,7 @@ function FieldConfigPanel({
       setDataSourceId(null)
       setDataSourceFormId(null)
       setDataSourceFieldId(null)
+      setAllowCustomValue(false)
     } else {
       setPreFillFormId(null)
       setPreFillFieldId(null)
@@ -269,6 +273,21 @@ function FieldConfigPanel({
           onFieldIdChange={setDataSourceFieldId}
           allForms={otherForms}
         />
+
+        {/* Allow custom value (combobox mode) */}
+        {dataSourceType !== 'None' && (
+          <div className="flex items-center gap-2 pt-1">
+            <Switch
+              id={`custom-${field.id}`}
+              checked={allowCustomValue}
+              onCheckedChange={setAllowCustomValue}
+              className="scale-90"
+            />
+            <Label htmlFor={`custom-${field.id}`} className="text-xs cursor-pointer">
+              Allow custom value
+            </Label>
+          </div>
+        )}
       )}
 
       {/* Required */}

@@ -59,7 +59,8 @@ public class PortalController : ControllerBase
         int Id, string Label, string FieldType, bool IsRequired, int SortOrder,
         string DataSourceType, int? DataSourceId, int? MaxLength,
         int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId,
-        int? DataSourceFormId, int? DataSourceFieldId);
+        int? DataSourceFormId, int? DataSourceFieldId,
+        bool AllowCustomValue);
 
     public record ProjectSubmissionFormDto(
         int FormId, string FormName,
@@ -473,7 +474,8 @@ public class PortalController : ControllerBase
                     f.Id, f.Label, f.FieldType, f.IsRequired, f.SortOrder,
                     f.DataSourceType, f.DataSourceId, f.MaxLength,
                     f.CrossFormPreFillFormId, f.CrossFormPreFillFieldId,
-                    f.DataSourceFormId, f.DataSourceFieldId)));
+                    f.DataSourceFormId, f.DataSourceFieldId,
+                    f.AllowCustomValue)));
 
         return Ok(formDto);
     }
@@ -724,6 +726,52 @@ public class PortalController : ControllerBase
     }
 
     // ── Cross-form data endpoints ──────────────────────────────────────────────
+
+    // GET /api/portal/dropdown-options?dataSourceType=ReferenceData&dataSourceId=5
+    [HttpGet("dropdown-options")]
+    public async Task<IActionResult> GetDropdownOptions(
+        [FromQuery] string dataSourceType,
+        [FromQuery] int? dataSourceId)
+    {
+        IList<string> options = dataSourceType switch
+        {
+            "ReferenceData" when dataSourceId.HasValue =>
+                await _db.ReferenceDataItems
+                    .Where(i => i.DataSetId == dataSourceId.Value && i.IsActive)
+                    .OrderBy(i => i.SortOrder).ThenBy(i => i.Label)
+                    .Select(i => i.Label)
+                    .ToListAsync(),
+
+            "ProductType" =>
+                await _db.ProductTypes
+                    .Where(p => p.IsActive)
+                    .OrderBy(p => p.Name)
+                    .Select(p => p.Name)
+                    .ToListAsync(),
+
+            "Category" =>
+                await _db.Categories
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.Name)
+                    .Select(c => c.Name)
+                    .ToListAsync(),
+
+            "UnitOfMeasure" =>
+                await _db.UnitsOfMeasure
+                    .Where(u => u.IsActive && (
+                        !dataSourceId.HasValue ||
+                        (dataSourceId == 1 && u.UnitCategory == "Volume") ||
+                        (dataSourceId == 2 && u.UnitCategory == "Weight") ||
+                        (dataSourceId == 3 && u.UnitCategory == "Count")))
+                    .OrderBy(u => u.SortOrder).ThenBy(u => u.Name)
+                    .Select(u => u.Name)
+                    .ToListAsync(),
+
+            _ => []
+        };
+
+        return Ok(options);
+    }
 
     // GET /api/portal/projects/{id}/cross-form-data?sourceFormId=X&sourceFieldId=Y&mode=prefill|dropdown
     [HttpGet("projects/{id:int}/cross-form-data")]

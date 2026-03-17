@@ -19,8 +19,57 @@ import {
   submitForm,
   getCrossFormPrefill,
   getCrossFormDropdown,
+  getDropdownOptions,
   type FormFieldForFillDto,
 } from '@/api/portal'
+
+// ── Combobox: text input with suggestion list ──────────────────────────────────
+
+function ComboboxInput({
+  value,
+  onChange,
+  options,
+  placeholder = 'Type or select...',
+  disabled,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: string[]
+  placeholder?: string
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const filtered = value
+    ? options.filter(o => o.toLowerCase().includes(value.toLowerCase()))
+    : options
+
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 top-full mt-1 w-full rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto">
+          {filtered.map(opt => (
+            <button
+              key={opt}
+              type="button"
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
+              onMouseDown={() => { onChange(opt); setOpen(false) }}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Per-field renderer (component so it can use hooks) ─────────────────────────
 
@@ -58,7 +107,7 @@ function PortalFieldRenderer({
   }, [preFillData, onChange])
 
   // ProjectSubmission dropdown options
-  const { data: dropdownOptions = [], isLoading: optionsLoading } = useQuery({
+  const { data: crossFormOptions = [], isLoading: crossFormLoading } = useQuery({
     queryKey: ['cross-form-dropdown', projectId, field.dataSourceFormId, field.dataSourceFieldId],
     queryFn: () => getCrossFormDropdown(projectId, field.dataSourceFormId!, field.dataSourceFieldId!),
     enabled:
@@ -67,6 +116,18 @@ function PortalFieldRenderer({
       field.dataSourceFormId != null &&
       field.dataSourceFieldId != null,
   })
+
+  // Static data source options (ReferenceData, ProductType, UnitOfMeasure, Category)
+  const staticDataSourceTypes = ['ReferenceData', 'ProductType', 'UnitOfMeasure', 'Category']
+  const { data: staticOptions = [], isLoading: staticLoading } = useQuery({
+    queryKey: ['dropdown-options', field.dataSourceType, field.dataSourceId],
+    queryFn: () => getDropdownOptions(field.dataSourceType, field.dataSourceId),
+    enabled: field.fieldType === 'Dropdown' && staticDataSourceTypes.includes(field.dataSourceType),
+  })
+
+  const isProjectSubmission = field.dataSourceType === 'ProjectSubmission'
+  const dropdownOptions = isProjectSubmission ? crossFormOptions : staticOptions
+  const optionsLoading = isProjectSubmission ? crossFormLoading : staticLoading
 
   // Read-only display
   if (isReadOnly) {
@@ -79,19 +140,30 @@ function PortalFieldRenderer({
     )
   }
 
-  // ProjectSubmission dropdown
-  if (field.fieldType === 'Dropdown' && field.dataSourceType === 'ProjectSubmission') {
+  // Dropdown with a data source
+  if (field.fieldType === 'Dropdown' && field.dataSourceType !== 'None') {
     const noOptions = !optionsLoading && dropdownOptions.length === 0
+
+    // Combobox mode: suggestions + free text
+    if (field.allowCustomValue) {
+      return (
+        <ComboboxInput
+          value={value}
+          onChange={onChange}
+          options={dropdownOptions}
+          placeholder={optionsLoading ? 'Loading...' : 'Type or select...'}
+          disabled={optionsLoading}
+        />
+      )
+    }
+
+    // Validated Select mode: must pick from the list
     return (
       <Select value={value} onValueChange={onChange} disabled={optionsLoading || noOptions}>
         <SelectTrigger>
           <SelectValue
             placeholder={
-              optionsLoading
-                ? 'Loading...'
-                : noOptions
-                ? 'No options available yet'
-                : 'Select...'
+              optionsLoading ? 'Loading...' : noOptions ? 'No options available yet' : 'Select...'
             }
           />
         </SelectTrigger>

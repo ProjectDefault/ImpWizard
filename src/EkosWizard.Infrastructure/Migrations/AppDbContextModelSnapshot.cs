@@ -199,6 +199,9 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("AllowCustomValue")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("CrossFormPreFillFieldId")
                         .HasColumnType("int");
 

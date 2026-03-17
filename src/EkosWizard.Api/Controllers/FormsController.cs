@@ -40,7 +40,7 @@ public class FormsController : ControllerBase
         string LockScope, int? MaxLength,
         int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId, string? CrossFormPreFillFieldLabel,
         int? DataSourceFormId, int? DataSourceFieldId, string? DataSourceFormName,
-        string? ImportTemplateHeader,
+        string? ImportTemplateHeader, bool AllowCustomValue,
         DateTime CreatedAt, DateTime UpdatedAt);
 
     public record FormDetailDto(
@@ -75,7 +75,8 @@ public class FormsController : ControllerBase
         int? DataSourceFormId = null,
         int? DataSourceFieldId = null,
         string? ImportTemplateHeader = null,
-        bool ClearImportTemplateHeader = false);
+        bool ClearImportTemplateHeader = false,
+        bool? AllowCustomValue = null);
 
     public record ReorderRequest(int[] FieldIds);
 
@@ -97,7 +98,7 @@ public class FormsController : ControllerBase
             ff.LockScope, ff.MaxLength,
             ff.CrossFormPreFillFormId, ff.CrossFormPreFillFieldId, ff.CrossFormPreFillField?.Label,
             ff.DataSourceFormId, ff.DataSourceFieldId, ff.DataSourceForm?.Name,
-            ff.ImportTemplateHeader,
+            ff.ImportTemplateHeader, ff.AllowCustomValue,
             ff.CreatedAt, ff.UpdatedAt);
 
     private static string? GetDataSourceName(FormField ff) => ff.DataSourceType switch
@@ -401,6 +402,7 @@ public class FormsController : ControllerBase
         if (req.DataSourceFieldId is not null) field.DataSourceFieldId = req.DataSourceFieldId == 0 ? null : req.DataSourceFieldId;
         if (req.ClearImportTemplateHeader) field.ImportTemplateHeader = null;
         else if (req.ImportTemplateHeader is not null) field.ImportTemplateHeader = req.ImportTemplateHeader.Trim().Length > 0 ? req.ImportTemplateHeader.Trim() : null;
+        if (req.AllowCustomValue is not null) field.AllowCustomValue = req.AllowCustomValue.Value;
         field.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

@@ -47,6 +47,10 @@ public class FormField
     /// <summary>Override column header used in import templates. If null, falls back to Label.</summary>
     public string? ImportTemplateHeader { get; set; }
 
+    /// <summary>When true, the dropdown renders as a combobox — options are shown as suggestions but
+    /// the user may type a custom value not in the list.</summary>
+    public bool AllowCustomValue { get; set; } = false;
+
     // ── Cross-form pre-fill ───────────────────────────────────────────────────
 
     /// <summary>When set, this field's default value is pulled from the most recent submitted answer

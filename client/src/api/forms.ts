@@ -35,6 +35,7 @@ export interface FormFieldDto {
   dataSourceFieldId: number | null
   dataSourceFormName: string | null
   importTemplateHeader: string | null
+  allowCustomValue: boolean
   createdAt: string
   updatedAt: string
 }
@@ -112,6 +113,7 @@ export interface UpdateFormFieldPayload {
   dataSourceFieldId?: number | null
   importTemplateHeader?: string | null
   clearImportTemplateHeader?: boolean
+  allowCustomValue?: boolean
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────

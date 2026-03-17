@@ -104,7 +104,11 @@ export interface FormFieldForFillDto {
   crossFormPreFillFieldId?: number
   dataSourceFormId?: number
   dataSourceFieldId?: number
+  allowCustomValue: boolean
 }
+
+export const getDropdownOptions = (dataSourceType: string, dataSourceId?: number | null): Promise<string[]> =>
+  api.get('/portal/dropdown-options', { params: { dataSourceType, dataSourceId } }).then(r => r.data)
 
 export interface ProjectSubmissionAnswerDto {
   answerId: number
