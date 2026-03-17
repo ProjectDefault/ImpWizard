@@ -262,32 +262,34 @@ function FieldConfigPanel({
 
       {/* Data Source (only for Dropdown) */}
       {fieldType === 'Dropdown' && (
-        <FieldDataSourcePicker
-          dataSourceType={dataSourceType}
-          dataSourceId={dataSourceId}
-          dataSourceFormId={dataSourceFormId}
-          dataSourceFieldId={dataSourceFieldId}
-          onTypeChange={setDataSourceType}
-          onIdChange={setDataSourceId}
-          onFormIdChange={setDataSourceFormId}
-          onFieldIdChange={setDataSourceFieldId}
-          allForms={otherForms}
-        />
+        <>
+          <FieldDataSourcePicker
+            dataSourceType={dataSourceType}
+            dataSourceId={dataSourceId}
+            dataSourceFormId={dataSourceFormId}
+            dataSourceFieldId={dataSourceFieldId}
+            onTypeChange={setDataSourceType}
+            onIdChange={setDataSourceId}
+            onFormIdChange={setDataSourceFormId}
+            onFieldIdChange={setDataSourceFieldId}
+            allForms={otherForms}
+          />
 
-        {/* Allow custom value (combobox mode) */}
-        {dataSourceType !== 'None' && (
-          <div className="flex items-center gap-2 pt-1">
-            <Switch
-              id={`custom-${field.id}`}
-              checked={allowCustomValue}
-              onCheckedChange={setAllowCustomValue}
-              className="scale-90"
-            />
-            <Label htmlFor={`custom-${field.id}`} className="text-xs cursor-pointer">
-              Allow custom value
-            </Label>
-          </div>
-        )}
+          {/* Allow custom value (combobox mode) */}
+          {dataSourceType !== 'None' && (
+            <div className="flex items-center gap-2 pt-1">
+              <Switch
+                id={`custom-${field.id}`}
+                checked={allowCustomValue}
+                onCheckedChange={setAllowCustomValue}
+                className="scale-90"
+              />
+              <Label htmlFor={`custom-${field.id}`} className="text-xs cursor-pointer">
+                Allow custom value
+              </Label>
+            </div>
+          )}
+        </>
       )}
 
       {/* Required */}
