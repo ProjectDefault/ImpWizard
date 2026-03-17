@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
@@ -92,7 +92,7 @@ function SortableItemRow({
   }
 
   return (
-    <tr ref={setNodeRef} style={style} className="border-b last:border-b-0 hover:bg-muted/30">
+    <tr ref={setNodeRef} style={style} data-item-id={item.id} className="border-b last:border-b-0 hover:bg-muted/30">
       {/* Drag handle */}
       <td className="px-2 py-2 w-8">
         {canEdit && (
@@ -115,6 +115,10 @@ function SortableItemRow({
               className="h-7 text-sm"
               placeholder="Label"
               autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); onEditSave() }
+                if (e.key === 'Escape') onEditCancel()
+              }}
             />
             {allProductTypes.length > 0 && (
               <div className="mt-1.5">
@@ -319,6 +323,25 @@ export default function ReferenceDataPage() {
   const [importJson, setImportJson] = useState('')
   const [importJsonError, setImportJsonError] = useState<string | null>(null)
   const [importResults, setImportResults] = useState<ImportSummaryDto | null>(null)
+  const [scrollToItemId, setScrollToItemId] = useState<number | null>(null)
+  const addFormRef = useRef<HTMLDivElement>(null)
+
+  // Scroll the inline add form into view when it opens
+  useEffect(() => {
+    if (addingItem && addFormRef.current) {
+      addFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [addingItem])
+
+  // Scroll newly created item row into view after it appears in the table
+  useEffect(() => {
+    if (scrollToItemId === null) return
+    const el = document.querySelector(`[data-item-id="${scrollToItemId}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      setScrollToItemId(null)
+    }
+  }, [scrollToItemId, orderedItems])
 
   // --- Queries ---
   const {
@@ -452,6 +475,7 @@ export default function ReferenceDataPage() {
       setNewItem({ label: '', sortOrder: 0 })
       setEditingItemId(newItemResult.id)
       setEditItem({ label: newItemResult.label, position: orderedItems.length + 1, productTypeIds: newItemResult.productTypes.map(pt => pt.id) })
+      setScrollToItemId(newItemResult.id)
     },
     onError: () => {
       toast.error('Failed to add item')
@@ -1003,7 +1027,7 @@ export default function ReferenceDataPage() {
 
                     {/* Add Item Inline Form */}
                     {canEdit && addingItem && (
-                      <div className="rounded-md border p-3 space-y-3 bg-muted/20">
+                      <div ref={addFormRef} className="rounded-md border p-3 space-y-3 bg-muted/20">
                         <p className="text-sm font-medium">New Item</p>
                         <div className="flex items-end gap-3">
                           <div className="flex-1 space-y-1">
