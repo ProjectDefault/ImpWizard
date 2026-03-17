@@ -1,5 +1,21 @@
 # EkosWizard — Development Guidelines
 
+## GitHub — Commit and Push After Every Session
+
+After completing any meaningful change, always commit and push to GitHub:
+
+```bash
+cd "C:\Users\User\Google Drive\EkosWizard"
+git add .
+git commit -m "Brief description of what changed"
+git push
+```
+
+- Commit after every feature, fix, or significant edit — don't batch up days of work
+- Use a clear commit message describing what changed (e.g. "Add CIS program filtering to AuditController", "Fix timezone dropdown clipping")
+- The GitHub remote is: `https://github.com/ProjectDefault/ImpWizard.git`
+- Branch: `main`
+
 ## Security is a Top Priority
 
 **Every feature, every endpoint, every UI change must be evaluated through a security lens.** Before shipping any code, ask: "Can a user access data that isn't theirs? Can a user escalate privileges? Can input be injected?" If the answer to any of these is "maybe," fix it first.
