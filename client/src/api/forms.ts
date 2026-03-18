@@ -5,7 +5,7 @@ import apiClient from './client'
 export const FIELD_TYPES = ['Text', 'Number', 'Date', 'Dropdown', 'Checkbox', 'Textarea'] as const
 export type FieldType = typeof FIELD_TYPES[number]
 
-export const DATA_SOURCE_TYPES = ['None', 'ReferenceData', 'ProductType', 'UnitOfMeasure', 'Category', 'ItemCategory', 'ProjectSubmission'] as const
+export const DATA_SOURCE_TYPES = ['None', 'ReferenceData', 'ProductType', 'UnitOfMeasure', 'Category', 'ItemCategory', 'ItemCatalog', 'ProjectSubmission'] as const
 export type DataSourceType = typeof DATA_SOURCE_TYPES[number]
 
 export const LOCK_SCOPES = ['Field', 'EntireForm'] as const

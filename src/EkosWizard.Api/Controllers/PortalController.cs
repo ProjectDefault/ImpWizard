@@ -812,6 +812,14 @@ public class PortalController : ControllerBase
                     .Select(c => c.Name)
                     .ToListAsync(),
 
+            "ItemCatalog" =>
+                await _db.CatalogItems
+                    .Where(c => c.IsActive)
+                    .Select(c => c.ItemName)
+                    .Distinct()
+                    .OrderBy(n => n)
+                    .ToListAsync(),
+
             _ => []
         };
 

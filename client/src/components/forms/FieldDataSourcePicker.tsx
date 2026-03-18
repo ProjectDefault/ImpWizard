@@ -77,6 +77,7 @@ export function FieldDataSourcePicker({
             <SelectItem value="UnitOfMeasure">Units of Measure</SelectItem>
             <SelectItem value="Category">Categories</SelectItem>
             <SelectItem value="ItemCategory">Ingredient Categories</SelectItem>
+            <SelectItem value="ItemCatalog">Item Catalog</SelectItem>
             <SelectItem value="ProjectSubmission">Project Submission</SelectItem>
           </SelectContent>
         </Select>
@@ -136,6 +137,10 @@ export function FieldDataSourcePicker({
 
       {dataSourceType === 'Category' && (
         <p className="text-xs text-muted-foreground">All active categories will be shown.</p>
+      )}
+
+      {dataSourceType === 'ItemCatalog' && (
+        <p className="text-xs text-muted-foreground">All active item names from the Item Catalog, unique and sorted A–Z.</p>
       )}
 
       {dataSourceType === 'ProjectSubmission' && (
