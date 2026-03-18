@@ -148,6 +148,7 @@ function FieldConfigPanel({
     onSuccess: (updated) => {
       onSaved(updated)
       toast.success('Field saved')
+      onClose()
     },
     onError: () => toast.error('Failed to save field'),
   })
@@ -433,12 +434,12 @@ function FieldConfigPanel({
       <div className="flex gap-2 pt-1">
         <Button
           size="sm"
-          className="flex-1"
+          className={`flex-1 transition-colors ${isDirty ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500' : ''}`}
           onClick={handleSave}
           disabled={updateMutation.isPending || !isDirty}
         >
           <Check className="h-3.5 w-3.5 mr-1" />
-          {updateMutation.isPending ? 'Saving...' : 'Save'}
+          {updateMutation.isPending ? 'Saving...' : isDirty ? 'Save Changes' : 'Saved'}
         </Button>
         <Button size="sm" variant="ghost" onClick={onClose}>
           <X className="h-3.5 w-3.5" />
