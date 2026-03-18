@@ -36,6 +36,7 @@ export interface FormFieldDto {
   dataSourceFormName: string | null
   importTemplateHeader: string | null
   allowCustomValue: boolean
+  autoFillValue: string | null
   createdAt: string
   updatedAt: string
 }
@@ -114,6 +115,8 @@ export interface UpdateFormFieldPayload {
   importTemplateHeader?: string | null
   clearImportTemplateHeader?: boolean
   allowCustomValue?: boolean
+  autoFillValue?: string | null
+  clearAutoFillValue?: boolean
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────

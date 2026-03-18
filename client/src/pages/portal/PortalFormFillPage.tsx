@@ -129,6 +129,16 @@ function PortalFieldRenderer({
   const dropdownOptions = isProjectSubmission ? crossFormOptions : staticOptions
   const optionsLoading = isProjectSubmission ? crossFormLoading : staticLoading
 
+  // Auto-fill: always show as read-only with indicator
+  if (field.autoFillValue != null) {
+    return (
+      <div className="flex items-center gap-2">
+        <Input value={field.autoFillValue} disabled className="h-9 bg-muted/40" />
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Auto-filled</span>
+      </div>
+    )
+  }
+
   // Read-only display
   if (isReadOnly) {
     return (
@@ -248,6 +258,19 @@ export default function PortalFormFillPage() {
     enabled: !!pid && !!aid,
     retry: false,
   })
+
+  // Initialize auto-fill field answers so they appear in the submission payload
+  useEffect(() => {
+    if (form) {
+      setAnswers(prev => {
+        const updated = { ...prev }
+        for (const f of form.fields) {
+          if (f.autoFillValue != null) updated[f.id] = f.autoFillValue
+        }
+        return updated
+      })
+    }
+  }, [form])
 
   // Pre-fill answers from existing submission
   useEffect(() => {

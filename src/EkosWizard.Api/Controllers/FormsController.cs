@@ -41,6 +41,7 @@ public class FormsController : ControllerBase
         int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId, string? CrossFormPreFillFieldLabel,
         int? DataSourceFormId, int? DataSourceFieldId, string? DataSourceFormName,
         string? ImportTemplateHeader, bool AllowCustomValue,
+        string? AutoFillValue,
         DateTime CreatedAt, DateTime UpdatedAt);
 
     public record FormDetailDto(
@@ -76,7 +77,9 @@ public class FormsController : ControllerBase
         int? DataSourceFieldId = null,
         string? ImportTemplateHeader = null,
         bool ClearImportTemplateHeader = false,
-        bool? AllowCustomValue = null);
+        bool? AllowCustomValue = null,
+        string? AutoFillValue = null,
+        bool ClearAutoFillValue = false);
 
     public record ReorderRequest(int[] FieldIds);
 
@@ -99,6 +102,7 @@ public class FormsController : ControllerBase
             ff.CrossFormPreFillFormId, ff.CrossFormPreFillFieldId, ff.CrossFormPreFillField?.Label,
             ff.DataSourceFormId, ff.DataSourceFieldId, ff.DataSourceForm?.Name,
             ff.ImportTemplateHeader, ff.AllowCustomValue,
+            ff.AutoFillValue,
             ff.CreatedAt, ff.UpdatedAt);
 
     private static string? GetDataSourceName(FormField ff) => ff.DataSourceType switch
@@ -304,6 +308,7 @@ public class FormsController : ControllerBase
             IsActive = false,
             Status = "Draft",  // copies always start as Draft
             SortOrder = source.SortOrder,
+            ProgramId = source.ProgramId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -319,9 +324,16 @@ public class FormsController : ControllerBase
                 IsArchived = ff.IsArchived,
                 DataSourceType = ff.DataSourceType,
                 DataSourceId = ff.DataSourceId,
+                DataSourceFormId = ff.DataSourceFormId,
+                DataSourceFieldId = ff.DataSourceFieldId,
                 LockedUntilFormId = ff.LockedUntilFormId,
                 LockScope = ff.LockScope,
                 MaxLength = ff.MaxLength,
+                CrossFormPreFillFormId = ff.CrossFormPreFillFormId,
+                CrossFormPreFillFieldId = ff.CrossFormPreFillFieldId,
+                ImportTemplateHeader = ff.ImportTemplateHeader,
+                AllowCustomValue = ff.AllowCustomValue,
+                AutoFillValue = ff.AutoFillValue,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             });
@@ -404,6 +416,9 @@ public class FormsController : ControllerBase
         if (req.ClearImportTemplateHeader) field.ImportTemplateHeader = null;
         else if (req.ImportTemplateHeader is not null) field.ImportTemplateHeader = req.ImportTemplateHeader.Trim().Length > 0 ? req.ImportTemplateHeader.Trim() : null;
         if (req.AllowCustomValue is not null) field.AllowCustomValue = req.AllowCustomValue.Value;
+        if (req.ClearAutoFillValue) field.AutoFillValue = null;
+        else if (req.AutoFillValue is not null)
+            field.AutoFillValue = req.AutoFillValue.Trim().Length > 0 ? req.AutoFillValue.Trim() : null;
         field.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

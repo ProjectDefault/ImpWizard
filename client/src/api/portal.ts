@@ -105,6 +105,7 @@ export interface FormFieldForFillDto {
   dataSourceFormId?: number
   dataSourceFieldId?: number
   allowCustomValue: boolean
+  autoFillValue?: string | null
 }
 
 export const getDropdownOptions = (dataSourceType: string, dataSourceId?: number | null): Promise<string[]> =>

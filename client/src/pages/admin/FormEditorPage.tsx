@@ -134,6 +134,7 @@ function FieldConfigPanel({
   const [preFillFieldId, setPreFillFieldId] = useState<number | null>(field.crossFormPreFillFieldId)
   const [importTemplateHeader, setImportTemplateHeader] = useState(field.importTemplateHeader ?? '')
   const [allowCustomValue, setAllowCustomValue] = useState(field.allowCustomValue)
+  const [autoFillValue, setAutoFillValue] = useState(field.autoFillValue ?? '')
 
   const { data: preFillSourceForm } = useQuery({
     queryKey: ['forms', preFillFormId],
@@ -165,7 +166,8 @@ function FieldConfigPanel({
     preFillFormId !== field.crossFormPreFillFormId ||
     preFillFieldId !== field.crossFormPreFillFieldId ||
     importTemplateHeader !== (field.importTemplateHeader ?? '') ||
-    allowCustomValue !== field.allowCustomValue
+    allowCustomValue !== field.allowCustomValue ||
+    autoFillValue !== (field.autoFillValue ?? '')
 
   function handleSave() {
     if (!label.trim()) { toast.error('Label is required'); return }
@@ -187,6 +189,9 @@ function FieldConfigPanel({
       ...(importTemplateHeader.trim()
         ? { importTemplateHeader: importTemplateHeader.trim() }
         : { clearImportTemplateHeader: true }),
+      ...(autoFillValue.trim()
+        ? { autoFillValue: autoFillValue.trim() }
+        : { clearAutoFillValue: true }),
       ...(hasMaxLength
         ? maxLength != null ? { maxLength } : { clearMaxLength: true }
         : { clearMaxLength: true }),
@@ -301,6 +306,22 @@ function FieldConfigPanel({
           className="scale-90"
         />
         <Label htmlFor={`req-${field.id}`} className="text-xs cursor-pointer">Required</Label>
+      </div>
+
+      {/* Auto-fill Value */}
+      <div className="space-y-1 pt-1 border-t">
+        <Label className="text-xs">Auto-fill Value <span className="text-muted-foreground">(optional)</span></Label>
+        <Input
+          value={autoFillValue}
+          onChange={e => setAutoFillValue(e.target.value)}
+          placeholder="Leave blank to disable"
+          className="h-7 text-sm"
+        />
+        {autoFillValue.trim() && (
+          <p className="text-xs text-muted-foreground">
+            This field will always be filled with this value and shown as read-only on the portal.
+          </p>
+        )}
       </div>
 
       {/* Character limit (Text / Textarea only) */}

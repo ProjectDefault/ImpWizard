@@ -69,6 +69,10 @@ public class FormField
     public int? DataSourceFieldId { get; set; }
     public FormField? DataSourceField { get; set; }
 
+    /// <summary>When set, this field is automatically filled with this fixed value on every
+    /// submission and shown read-only on the portal. The value is enforced server-side.</summary>
+    public string? AutoFillValue { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

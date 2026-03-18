@@ -202,6 +202,9 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.Property<bool>("AllowCustomValue")
                         .HasColumnType("bit");
 
+                    b.Property<string>("AutoFillValue")
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<int?>("CrossFormPreFillFieldId")
                         .HasColumnType("int");
 

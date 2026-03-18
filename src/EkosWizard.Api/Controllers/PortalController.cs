@@ -60,7 +60,7 @@ public class PortalController : ControllerBase
         string DataSourceType, int? DataSourceId, int? MaxLength,
         int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId,
         int? DataSourceFormId, int? DataSourceFieldId,
-        bool AllowCustomValue);
+        bool AllowCustomValue, string? AutoFillValue);
 
     public record ProjectSubmissionFormDto(
         int FormId, string FormName,
@@ -475,7 +475,7 @@ public class PortalController : ControllerBase
                     f.DataSourceType, f.DataSourceId, f.MaxLength,
                     f.CrossFormPreFillFormId, f.CrossFormPreFillFieldId,
                     f.DataSourceFormId, f.DataSourceFieldId,
-                    f.AllowCustomValue)));
+                    f.AllowCustomValue, f.AutoFillValue)));
 
         return Ok(formDto);
     }
@@ -552,13 +552,32 @@ public class PortalController : ControllerBase
 
         // Replace answers: remove old, add new
         _db.FormSubmissionAnswers.RemoveRange(existing.Answers);
+
+        // Build auto-fill lookup (field ID → fixed value)
+        var autoFillMap = assignment.Form.Fields
+            .Where(f => !string.IsNullOrEmpty(f.AutoFillValue))
+            .ToDictionary(f => f.Id, f => f.AutoFillValue!);
+
+        // Add user-submitted answers, skipping auto-fill fields
         foreach (var a in req.Answers)
         {
+            if (autoFillMap.ContainsKey(a.FormFieldId)) continue;
             _db.FormSubmissionAnswers.Add(new FormSubmissionAnswer
             {
                 FormSubmissionId = existing.Id,
                 FormFieldId = a.FormFieldId,
                 Value = a.Value,
+            });
+        }
+
+        // Inject auto-fill answers regardless of what client submitted
+        foreach (var (fieldId, value) in autoFillMap)
+        {
+            _db.FormSubmissionAnswers.Add(new FormSubmissionAnswer
+            {
+                FormSubmissionId = existing.Id,
+                FormFieldId = fieldId,
+                Value = value,
             });
         }
 
@@ -631,13 +650,32 @@ public class PortalController : ControllerBase
 
         // Replace answers
         _db.FormSubmissionAnswers.RemoveRange(existing.Answers);
+
+        // Build auto-fill lookup (field ID → fixed value)
+        var autoFillMapSubmit = assignment.Form.Fields
+            .Where(f => !string.IsNullOrEmpty(f.AutoFillValue))
+            .ToDictionary(f => f.Id, f => f.AutoFillValue!);
+
+        // Add user-submitted answers, skipping auto-fill fields
         foreach (var a in req.Answers)
         {
+            if (autoFillMapSubmit.ContainsKey(a.FormFieldId)) continue;
             _db.FormSubmissionAnswers.Add(new FormSubmissionAnswer
             {
                 FormSubmissionId = existing.Id,
                 FormFieldId = a.FormFieldId,
                 Value = a.Value,
+            });
+        }
+
+        // Inject auto-fill answers regardless of what client submitted
+        foreach (var (fieldId, value) in autoFillMapSubmit)
+        {
+            _db.FormSubmissionAnswers.Add(new FormSubmissionAnswer
+            {
+                FormSubmissionId = existing.Id,
+                FormFieldId = fieldId,
+                Value = value,
             });
         }
 
