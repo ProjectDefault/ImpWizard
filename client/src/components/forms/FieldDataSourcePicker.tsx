@@ -18,6 +18,13 @@ interface Props {
   disabled?: boolean
 }
 
+const ITEM_CATALOG_COLUMNS = [
+  { id: 1, label: 'Item Name' },
+  { id: 2, label: 'Supplier' },
+  { id: 3, label: 'Vendor' },
+  { id: 4, label: 'Purchase Description' },
+]
+
 const UOM_CATEGORIES = [
   { id: null,  label: 'All Units of Measure' },
   { id: 1,     label: 'Volume' },
@@ -148,13 +155,14 @@ export function FieldDataSourcePicker({
             disabled={disabled}
           >
             <SelectTrigger className="h-8 text-sm">
-              <SelectValue />
+              <SelectValue>
+                {ITEM_CATALOG_COLUMNS.find(c => c.id === (dataSourceId ?? 1))?.label ?? 'Item Name'}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">Item Name</SelectItem>
-              <SelectItem value="2">Supplier</SelectItem>
-              <SelectItem value="3">Vendor</SelectItem>
-              <SelectItem value="4">Purchase Description</SelectItem>
+              {ITEM_CATALOG_COLUMNS.map(c => (
+                <SelectItem key={c.id} value={c.id.toString()}>{c.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
