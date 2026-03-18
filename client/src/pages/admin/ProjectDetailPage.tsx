@@ -41,6 +41,7 @@ import {
   updateSubmissionAnswer,
 } from '@/api/portal'
 import type { ProjectSubmissionFormDto } from '@/api/portal'
+import { getBulkSubmission } from '@/api/bulkSubmissions'
 
 const statusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   Complete: 'default',
@@ -58,6 +59,30 @@ const formStatusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   Submitted: 'default',
   InProgress: 'secondary',
   NotStarted: 'outline',
+}
+
+function BulkReviewCell({ projectId, assignmentId }: { projectId: number; assignmentId: number }) {
+  const navigate = useNavigate()
+  const { data: bulk } = useQuery({
+    queryKey: ['bulk-review', projectId, assignmentId],
+    queryFn: () => getBulkSubmission(projectId, assignmentId),
+    retry: false,
+  })
+  if (!bulk) return null
+  const label: Record<string, string> = { Uploaded: 'Uploaded', InReview: 'In Review', Finalized: 'Finalized' }
+  return (
+    <div className="flex items-center gap-2">
+      <Badge variant={bulk.status === 'Finalized' ? 'default' : 'secondary'} className="text-xs">
+        {label[bulk.status] ?? bulk.status}
+      </Badge>
+      <Button
+        size="sm" variant="outline" className="h-7 text-xs"
+        onClick={() => navigate(`/admin/projects/${projectId}/bulk-review/${assignmentId}`)}
+      >
+        Open Review
+      </Button>
+    </div>
+  )
 }
 
 function ResourceTypeIcon({ type }: { type?: string }) {
@@ -839,6 +864,7 @@ export default function ProjectDetailPage() {
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead>File Upload</TableHead>
                     <TableHead className="w-[100px]" />
                   </TableRow>
                 </TableHeader>
@@ -851,6 +877,9 @@ export default function ProjectDetailPage() {
                         <Badge variant={formStatusVariant[fa.status] ?? 'outline'}>{fa.status}</Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{fa.notes ?? '—'}</TableCell>
+                      <TableCell>
+                        <BulkReviewCell projectId={pid} assignmentId={fa.id} />
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditFormAssignment(fa)}>

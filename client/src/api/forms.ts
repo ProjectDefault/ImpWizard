@@ -52,6 +52,7 @@ export interface FormListDto {
   sortOrder: number
   fieldCount: number
   programId: number | null
+  allowFileSubmission: boolean
   createdAt: string
   updatedAt: string
 }
@@ -64,6 +65,7 @@ export interface FormDetailDto {
   status: FormStatus
   sortOrder: number
   programId: number | null
+  allowFileSubmission: boolean
   createdAt: string
   updatedAt: string
   fields: FormFieldDto[]
@@ -82,6 +84,7 @@ export interface UpdateFormPayload {
   isActive?: boolean
   sortOrder?: number
   programId?: number | null
+  allowFileSubmission?: boolean
 }
 
 export interface CreateFormFieldPayload {

@@ -137,6 +137,9 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("AllowFileSubmission")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -872,6 +875,107 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.HasIndex("ProductTypesId");
 
                     b.ToTable("ProductTypeReferenceDataSet");
+                });
+
+            modelBuilder.Entity("ImpWizard.Infrastructure.Data.BulkSubmission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ProjectFormAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UploadedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("OriginalHeadersJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectFormAssignmentId");
+
+                    b.ToTable("BulkSubmissions");
+                });
+
+            modelBuilder.Entity("ImpWizard.Infrastructure.Data.BulkSubmissionRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BulkSubmissionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RowIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RawDataJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("ResultFormSubmissionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BulkSubmissionId");
+
+                    b.ToTable("BulkSubmissionRows");
+                });
+
+            modelBuilder.Entity("ImpWizard.Infrastructure.Data.BulkSubmissionCell", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BulkSubmissionRowId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FormFieldId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BulkSubmissionRowId");
+
+                    b.HasIndex("FormFieldId");
+
+                    b.ToTable("BulkSubmissionCells");
                 });
 
             modelBuilder.Entity("ImpWizard.Infrastructure.Data.FormField", b =>

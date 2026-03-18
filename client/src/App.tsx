@@ -31,6 +31,7 @@ import UsersPage from '@/pages/admin/UsersPage'
 import AuditLogPage from '@/pages/admin/AuditLogPage'
 import ItemCategoriesPage from '@/pages/admin/ItemCategoriesPage'
 import ProjectDetailPage from '@/pages/admin/ProjectDetailPage'
+import BulkSubmissionReviewPage from '@/pages/admin/BulkSubmissionReviewPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 
 import SuperCustomerLayout from '@/components/layout/SuperCustomerLayout'
@@ -72,6 +73,7 @@ export default function App() {
               <Route index element={<DashboardPage />} />
               <Route path="projects" element={<ProjectsPage />} />
               <Route path="projects/:projectId" element={<ProjectDetailPage />} />
+              <Route path="projects/:projectId/bulk-review/:faid" element={<BulkSubmissionReviewPage />} />
               <Route path="catalog" element={<CatalogPage />} />
               <Route path="data/reference" element={<ReferenceDataPage />} />
               <Route path="data/categories" element={<CategoriesPage />} />

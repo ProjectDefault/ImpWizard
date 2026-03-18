@@ -88,6 +88,7 @@ export interface FormWithFieldsDto {
   name: string
   description?: string
   status: string
+  allowFileSubmission: boolean
   fields: FormFieldForFillDto[]
 }
 

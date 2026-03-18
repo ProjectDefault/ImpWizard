@@ -93,6 +93,16 @@ export default function FormsPage() {
     onError: () => toast.error('Failed to update status'),
   })
 
+  const toggleFileSubmissionMutation = useMutation({
+    mutationFn: ({ id, allowFileSubmission }: { id: number; allowFileSubmission: boolean }) =>
+      updateForm(id, { allowFileSubmission }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['forms'] })
+      qc.invalidateQueries({ queryKey: ['forms', selectedId] })
+    },
+    onError: () => toast.error('Failed to update file submission setting'),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: deleteForm,
     onSuccess: () => {
@@ -297,16 +307,29 @@ export default function FormsPage() {
 
                       {/* Active toggle + Open Editor */}
                       <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            id="form-active"
-                            checked={selected.isActive}
-                            onCheckedChange={checked =>
-                              toggleActiveMutation.mutate({ id: selected.id, isActive: checked })
-                            }
-                            disabled={toggleActiveMutation.isPending}
-                          />
-                          <Label htmlFor="form-active" className="text-sm cursor-pointer">Active</Label>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              id="form-active"
+                              checked={selected.isActive}
+                              onCheckedChange={checked =>
+                                toggleActiveMutation.mutate({ id: selected.id, isActive: checked })
+                              }
+                              disabled={toggleActiveMutation.isPending}
+                            />
+                            <Label htmlFor="form-active" className="text-sm cursor-pointer">Active</Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              id="form-file-submission"
+                              checked={selected.allowFileSubmission}
+                              onCheckedChange={checked =>
+                                toggleFileSubmissionMutation.mutate({ id: selected.id, allowFileSubmission: checked })
+                              }
+                              disabled={toggleFileSubmissionMutation.isPending}
+                            />
+                            <Label htmlFor="form-file-submission" className="text-sm cursor-pointer">Allow File Submission</Label>
+                          </div>
                         </div>
                         <Button
                           size="sm"

@@ -29,7 +29,7 @@ public class FormsController : ControllerBase
     public record FormListDto(
         int Id, string Name, string? Description,
         bool IsActive, string Status, int SortOrder, int FieldCount,
-        int? ProgramId,
+        int? ProgramId, bool AllowFileSubmission,
         DateTime CreatedAt, DateTime UpdatedAt);
 
     public record FormFieldDto(
@@ -47,7 +47,7 @@ public class FormsController : ControllerBase
     public record FormDetailDto(
         int Id, string Name, string? Description,
         bool IsActive, string Status, int SortOrder,
-        int? ProgramId,
+        int? ProgramId, bool AllowFileSubmission,
         DateTime CreatedAt, DateTime UpdatedAt,
         IEnumerable<FormFieldDto> Fields);
 
@@ -55,7 +55,7 @@ public class FormsController : ControllerBase
 
     public record UpdateFormRequest(
         string? Name, string? Description,
-        bool? IsActive, int? SortOrder, int? ProgramId);
+        bool? IsActive, int? SortOrder, int? ProgramId, bool? AllowFileSubmission = null);
 
     public record CreateFormFieldRequest(
         string Label, string FieldType,
@@ -89,7 +89,7 @@ public class FormsController : ControllerBase
 
     private static FormListDto ToListDto(Form f) =>
         new(f.Id, f.Name, f.Description, f.IsActive, f.Status, f.SortOrder,
-            f.Fields.Count(ff => !ff.IsArchived), f.ProgramId,
+            f.Fields.Count(ff => !ff.IsArchived), f.ProgramId, f.AllowFileSubmission,
             f.CreatedAt, f.UpdatedAt);
 
     private static FormFieldDto ToFieldDto(FormField ff) =>
@@ -125,7 +125,7 @@ public class FormsController : ControllerBase
 
     private FormDetailDto ToDetailDto(Form f) =>
         new(f.Id, f.Name, f.Description, f.IsActive, f.Status, f.SortOrder,
-            f.ProgramId, f.CreatedAt, f.UpdatedAt,
+            f.ProgramId, f.AllowFileSubmission, f.CreatedAt, f.UpdatedAt,
             f.Fields.OrderBy(ff => ff.SortOrder).Select(ToFieldDto));
 
     private IQueryable<Form> FormsWithFields() =>
@@ -208,6 +208,7 @@ public class FormsController : ControllerBase
         if (req.IsActive is not null) form.IsActive = req.IsActive.Value;
         if (req.SortOrder is not null) form.SortOrder = req.SortOrder.Value;
         if (req.ProgramId is not null) form.ProgramId = req.ProgramId == 0 ? null : req.ProgramId;
+        if (req.AllowFileSubmission is not null) form.AllowFileSubmission = req.AllowFileSubmission.Value;
         form.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

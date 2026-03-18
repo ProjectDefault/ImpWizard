@@ -53,6 +53,7 @@ public class PortalController : ControllerBase
 
     public record FormWithFieldsDto(
         int Id, string Name, string? Description, string Status,
+        bool AllowFileSubmission,
         IEnumerable<FormFieldForFillDto> Fields);
 
     public record FormFieldForFillDto(
@@ -468,6 +469,7 @@ public class PortalController : ControllerBase
             assignment.Form.Name,
             assignment.Form.Description,
             assignment.Form.Status,
+            assignment.Form.AllowFileSubmission,
             assignment.Form.Fields
                 .OrderBy(f => f.SortOrder)
                 .Select(f => new FormFieldForFillDto(

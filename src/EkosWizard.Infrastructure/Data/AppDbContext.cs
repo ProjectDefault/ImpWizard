@@ -44,6 +44,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<MeetingType> MeetingTypes => Set<MeetingType>();
     public DbSet<ResourceType> ResourceTypes => Set<ResourceType>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+    public DbSet<BulkSubmission> BulkSubmissions => Set<BulkSubmission>();
+    public DbSet<BulkSubmissionRow> BulkSubmissionRows => Set<BulkSubmissionRow>();
+    public DbSet<BulkSubmissionCell> BulkSubmissionCells => Set<BulkSubmissionCell>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -490,6 +493,40 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             e.HasIndex(a => a.UserId);
             e.HasIndex(a => a.ProjectId);
             e.HasIndex(a => a.Action);
+        });
+
+        builder.Entity<BulkSubmission>(e =>
+        {
+            e.HasOne(b => b.ProjectFormAssignment)
+             .WithMany()
+             .HasForeignKey(b => b.ProjectFormAssignmentId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(b => b.Rows)
+             .WithOne(r => r.BulkSubmission)
+             .HasForeignKey(r => r.BulkSubmissionId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<BulkSubmissionRow>(e =>
+        {
+            e.HasMany(r => r.Cells)
+             .WithOne(c => c.BulkSubmissionRow)
+             .HasForeignKey(c => c.BulkSubmissionRowId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(r => r.ResultFormSubmission)
+             .WithMany()
+             .HasForeignKey(r => r.ResultFormSubmissionId)
+             .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        builder.Entity<BulkSubmissionCell>(e =>
+        {
+            e.HasOne(c => c.FormField)
+             .WithMany()
+             .HasForeignKey(c => c.FormFieldId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

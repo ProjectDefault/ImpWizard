@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Loader2, Upload, FileText, PenLine } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -22,6 +22,7 @@ import {
   getDropdownOptions,
   type FormFieldForFillDto,
 } from '@/api/portal'
+import { getBulkSubmission, uploadBulkFile } from '@/api/bulkSubmissions'
 
 // ── Combobox: text input with suggestion list ──────────────────────────────────
 
@@ -245,6 +246,9 @@ export default function PortalFormFillPage() {
   const aid = Number(assignmentId)
 
   const [answers, setAnswers] = useState<Record<number, string>>({})
+  const [mode, setMode] = useState<'picker' | 'manual' | 'upload'>('picker')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: form, isLoading: formLoading } = useQuery({
     queryKey: ['portal-form-detail', pid, aid],
@@ -256,6 +260,13 @@ export default function PortalFormFillPage() {
     queryKey: ['portal-form-submission', pid, aid],
     queryFn: () => getFormSubmission(pid, aid),
     enabled: !!pid && !!aid,
+    retry: false,
+  })
+
+  const { data: bulkSubmission, isLoading: bulkLoading, refetch: refetchBulk } = useQuery({
+    queryKey: ['portal-bulk-submission', pid, aid],
+    queryFn: () => getBulkSubmission(pid, aid),
+    enabled: !!pid && !!aid && form?.allowFileSubmission === true,
     retry: false,
   })
 
@@ -306,11 +317,24 @@ export default function PortalFormFillPage() {
     onError: () => toast.error('Failed to submit form.'),
   })
 
+  const uploadMutation = useMutation({
+    mutationFn: () => uploadBulkFile(pid, aid, uploadFile!),
+    onSuccess: () => {
+      toast.success('File uploaded successfully.')
+      setUploadFile(null)
+      refetchBulk()
+    },
+    onError: () => toast.error('Failed to upload file. Please check the file format and try again.'),
+  })
+
   function setAnswer(fieldId: number, value: string) {
     setAnswers(prev => ({ ...prev, [fieldId]: value }))
   }
 
-  const isLoading = formLoading || subLoading
+  const isLoading = formLoading || subLoading || (form?.allowFileSubmission === true && bulkLoading)
+
+  // Determine which UI to show for file-submission-enabled forms
+  const showBulkUI = form?.allowFileSubmission && !submission
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-6">
@@ -357,52 +381,197 @@ export default function PortalFormFillPage() {
 
           <Separator className="mb-6" />
 
-          <div className="space-y-6">
-            {form.fields.map(field => (
-              <div key={field.id} className="space-y-1.5">
-                {field.fieldType !== 'Checkbox' && (
-                  <Label className="text-sm font-medium">
-                    {field.label}
-                    {field.isRequired && <span className="text-destructive ml-1">*</span>}
-                  </Label>
-                )}
-                <PortalFieldRenderer
-                  field={field}
-                  value={answers[field.id] ?? ''}
-                  onChange={v => setAnswer(field.id, v)}
-                  isReadOnly={isReadOnly}
-                  projectId={pid}
-                  hasExistingSubmission={!!submission}
-                />
-                {field.maxLength && field.fieldType !== 'Checkbox' && !isReadOnly && (
-                  <p className="text-xs text-muted-foreground text-right">
-                    {(answers[field.id] ?? '').length} / {field.maxLength}
-                  </p>
+          {/* ── File submission UI ─────────────────────────────────────────── */}
+          {showBulkUI && bulkSubmission ? (
+            // Existing bulk submission — show status
+            bulkSubmission.status === 'Finalized' ? (
+              <div className="rounded-lg border p-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <h2 className="font-semibold">File Upload Processed</h2>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Your file <span className="font-medium">{bulkSubmission.fileName}</span> has been reviewed.
+                </p>
+                <div className="flex gap-4 text-sm">
+                  <span className="text-green-700 font-medium">
+                    {bulkSubmission.approvedRows} row{bulkSubmission.approvedRows !== 1 ? 's' : ''} approved
+                  </span>
+                  {bulkSubmission.rejectedRows > 0 && (
+                    <span className="text-red-600 font-medium">
+                      {bulkSubmission.rejectedRows} row{bulkSubmission.rejectedRows !== 1 ? 's' : ''} rejected
+                    </span>
+                  )}
+                </div>
+                {bulkSubmission.rejectedRows > 0 && (
+                  <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 space-y-1">
+                    <p className="text-xs font-medium text-red-700 dark:text-red-400">Rejected rows:</p>
+                    {bulkSubmission.rows
+                      .filter(r => r.status === 'Rejected')
+                      .map(r => (
+                        <p key={r.id} className="text-xs text-red-600 dark:text-red-400">
+                          Row {r.rowIndex + 1}: {r.rejectionReason ?? 'No reason provided'}
+                        </p>
+                      ))}
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="rounded-lg border p-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                  <h2 className="font-semibold">File Upload Pending Review</h2>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Your file <span className="font-medium">{bulkSubmission.fileName}</span> has been uploaded
+                  and is pending review by your implementation team.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {bulkSubmission.totalRows} row{bulkSubmission.totalRows !== 1 ? 's' : ''} · Uploaded {new Date(bulkSubmission.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            )
+          ) : showBulkUI && mode === 'picker' ? (
+            // Mode picker: choose between manual fill and file upload
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">How would you like to submit this form?</p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setMode('manual')}
+                  className="rounded-lg border-2 border-muted hover:border-primary hover:bg-muted/30 transition-colors p-6 text-left space-y-2"
+                >
+                  <PenLine className="h-6 w-6 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium text-sm">Fill Out Manually</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Enter each field one at a time</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('upload')}
+                  className="rounded-lg border-2 border-muted hover:border-primary hover:bg-muted/30 transition-colors p-6 text-left space-y-2"
+                >
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium text-sm">Upload a File</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Upload a CSV or Excel file</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          ) : showBulkUI && mode === 'upload' ? (
+            // File upload UI
+            <div className="space-y-4">
+              <div>
+                <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => setMode('picker')}>
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                </Button>
+                <h2 className="font-medium">Upload a File</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Upload a CSV or Excel (.xlsx) file. Your implementation team will review and map the columns.
+                </p>
+              </div>
 
-          {!isReadOnly && (
-            <>
-              <Separator className="my-6" />
+              <div
+                className="rounded-lg border-2 border-dashed border-muted hover:border-muted-foreground/50 transition-colors p-8 text-center cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploadFile ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <FileText className="h-6 w-6 text-muted-foreground" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium">{uploadFile.name}</p>
+                      <p className="text-xs text-muted-foreground">{(uploadFile.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">Click to select a file</p>
+                    <p className="text-xs text-muted-foreground">.csv or .xlsx</p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx"
+                  className="hidden"
+                  onChange={e => setUploadFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
               <div className="flex gap-3 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => saveDraftMutation.mutate()}
-                  disabled={saveDraftMutation.isPending || submitMutation.isPending}
-                >
-                  {saveDraftMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Save Draft
+                <Button variant="outline" onClick={() => { setMode('picker'); setUploadFile(null) }}>
+                  Cancel
                 </Button>
                 <Button
-                  onClick={() => submitMutation.mutate()}
-                  disabled={saveDraftMutation.isPending || submitMutation.isPending}
+                  onClick={() => uploadMutation.mutate()}
+                  disabled={!uploadFile || uploadMutation.isPending}
                 >
-                  {submitMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Submit
+                  {uploadMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Upload File
                 </Button>
               </div>
+            </div>
+          ) : (
+            // ── Manual form fill (existing UI) ───────────────────────────────
+            <>
+              {showBulkUI && mode === 'manual' && (
+                <div className="flex items-center gap-2 mb-4">
+                  <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setMode('picker')}>
+                    <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                  </Button>
+                </div>
+              )}
+              <div className="space-y-6">
+                {form.fields.map(field => (
+                  <div key={field.id} className="space-y-1.5">
+                    {field.fieldType !== 'Checkbox' && (
+                      <Label className="text-sm font-medium">
+                        {field.label}
+                        {field.isRequired && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                    )}
+                    <PortalFieldRenderer
+                      field={field}
+                      value={answers[field.id] ?? ''}
+                      onChange={v => setAnswer(field.id, v)}
+                      isReadOnly={isReadOnly}
+                      projectId={pid}
+                      hasExistingSubmission={!!submission}
+                    />
+                    {field.maxLength && field.fieldType !== 'Checkbox' && !isReadOnly && (
+                      <p className="text-xs text-muted-foreground text-right">
+                        {(answers[field.id] ?? '').length} / {field.maxLength}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {!isReadOnly && (
+                <>
+                  <Separator className="my-6" />
+                  <div className="flex gap-3 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => saveDraftMutation.mutate()}
+                      disabled={saveDraftMutation.isPending || submitMutation.isPending}
+                    >
+                      {saveDraftMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Save Draft
+                    </Button>
+                    <Button
+                      onClick={() => submitMutation.mutate()}
+                      disabled={saveDraftMutation.isPending || submitMutation.isPending}
+                    >
+                      {submitMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Submit
+                    </Button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </>
