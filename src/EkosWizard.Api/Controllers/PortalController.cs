@@ -812,6 +812,30 @@ public class PortalController : ControllerBase
                     .Select(c => c.Name)
                     .ToListAsync(),
 
+            "ItemCatalog" when dataSourceId == 2 =>
+                await _db.CatalogItems
+                    .Where(c => c.IsActive && c.Supplier != null)
+                    .Select(c => c.Supplier!.Name)
+                    .Distinct()
+                    .OrderBy(n => n)
+                    .ToListAsync(),
+
+            "ItemCatalog" when dataSourceId == 3 =>
+                await _db.CatalogItems
+                    .Where(c => c.IsActive && c.Vendor != null)
+                    .Select(c => c.Vendor!.Name)
+                    .Distinct()
+                    .OrderBy(n => n)
+                    .ToListAsync(),
+
+            "ItemCatalog" when dataSourceId == 4 =>
+                await _db.CatalogItems
+                    .Where(c => c.IsActive && c.PurchaseUomDescription != null && c.PurchaseUomDescription != "")
+                    .Select(c => c.PurchaseUomDescription!)
+                    .Distinct()
+                    .OrderBy(n => n)
+                    .ToListAsync(),
+
             "ItemCatalog" =>
                 await _db.CatalogItems
                     .Where(c => c.IsActive)

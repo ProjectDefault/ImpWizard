@@ -140,7 +140,24 @@ export function FieldDataSourcePicker({
       )}
 
       {dataSourceType === 'ItemCatalog' && (
-        <p className="text-xs text-muted-foreground">All active item names from the Item Catalog, unique and sorted A–Z.</p>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Column</Label>
+          <Select
+            value={dataSourceId?.toString() ?? '1'}
+            onValueChange={v => onIdChange(Number(v))}
+            disabled={disabled}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Item Name</SelectItem>
+              <SelectItem value="2">Supplier</SelectItem>
+              <SelectItem value="3">Vendor</SelectItem>
+              <SelectItem value="4">Purchase Description</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       )}
 
       {dataSourceType === 'ProjectSubmission' && (
