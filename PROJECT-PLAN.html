@@ -394,6 +394,8 @@
     <a href="#phase-1c">1c &mdash; Import Templates</a>
     <a href="#phase-1d">1d &mdash; Form Change Review</a>
     <a href="#phase-1e">1e &mdash; Program Management</a>
+    <a href="#phase-1i">1i &mdash; Form Field Enhancements</a>
+    <a href="#phase-1j">1j &mdash; Bulk File Submission</a>
     <a href="#phase-2">2 &mdash; Audit Log</a>
     <a href="#phase-3">3 &mdash; Salesforce</a>
     <a href="#phase-4">4 &mdash; QuickBooks</a>
@@ -972,6 +974,62 @@
         </div>
       </div>
 
+      <!-- Phase 1i — Form Field Enhancements -->
+      <div class="phase" id="phase-1i">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1i</div>
+          <div>
+            <div class="phase-title">Form Field Enhancements <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Form clone/duplicate, auto-fill values, Item Catalog dropdown source, and file submission flag</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Form Clone/Duplicate</strong> — <code>POST /api/forms/{id}/duplicate</code> copies the form and all fields including all properties: DataSourceFormId, DataSourceFieldId, CrossFormPreFillFormId, CrossFormPreFillFieldId, ImportTemplateHeader, AllowCustomValue, AutoFillValue, and ProgramId</li>
+            <li><strong>Auto-Fill Value</strong> — new <code>AutoFillValue</code> string property on <code>FormField</code>; migration <code>20260317000002_AddFormFieldAutoFillValue</code>; backend enforces the value on both SaveDraft and SubmitForm (client-supplied value for that field is discarded and replaced server-side); portal renders the field read-only with an "Auto-filled" label</li>
+            <li><strong>Auto-Fill UI</strong> — text input added to the field editor panel in FormEditorPage; uses <code>clearAutoFillValue</code> flag to remove it; empty = disabled</li>
+            <li><strong>Item Catalog dropdown source</strong> — new <code>"ItemCatalog"</code> data source type added to <code>DATA_SOURCE_TYPES</code>; <code>GetDropdownOptions</code> case returns all active <code>CatalogItem.ItemName</code> values, distinct, sorted A–Z; <code>FieldDataSourcePicker</code> shows the new option with a description blurb</li>
+            <li><strong>Allow File Submission flag</strong> — new <code>AllowFileSubmission</code> bool on <code>Form</code> (default false); toggle added to FormsPage detail panel alongside the Active switch; exposed in all form DTOs and portal <code>FormWithFieldsDto</code></li>
+          </ol>
+          <div class="deliverable">Forms can be cloned in one click preserving all field config. Fields can be auto-filled server-side. The Item Catalog is now a dropdown data source. Forms can be flagged to accept file uploads instead of manual entry. Deployed 2026-03-18.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1j — Bulk File Submission -->
+      <div class="phase" id="phase-1j">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1j</div>
+          <div>
+            <div class="phase-title">Bulk File Submission <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Customers upload CSV or Excel files in place of manual form entry; CIS/Admin reviews and finalizes in a spreadsheet editor</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Data model</strong> — three new entities: <code>BulkSubmission</code> (one per uploaded file; Status: Uploaded → InReview → Finalized), <code>BulkSubmissionRow</code> (one per CSV/XLSX row; Status: Pending | Approved | Rejected | Deleted; stores raw data as JSON), <code>BulkSubmissionCell</code> (one per field per row — the working editor values). Migration <code>20260318000000_AddBulkSubmissions</code></li>
+            <li><strong>File parsing</strong> — ExcelDataReader + ExcelDataReader.DataSet NuGet packages; unified code path for both CSV and XLSX via DataSet API</li>
+            <li><strong>BulkSubmissionsController</strong> at <code>api/portal/projects/{projectId}/forms/{faid}/bulk</code> (Admin, CIS, SuperCustomer, Customer with per-role checks):
+              <ul>
+                <li><code>POST /upload</code> — parse file, create BulkSubmission + BulkSubmissionRows, set assignment InProgress</li>
+                <li><code>GET /</code> — return active bulk submission with all rows and cells</li>
+                <li><code>PUT /column-mapping</code> — map raw headers → form field IDs; create BulkSubmissionCells pre-populated from raw data; inject auto-fill values; set status InReview</li>
+                <li><code>PUT /rows/{rowId}/cell</code> — update a single cell value</li>
+                <li><code>PUT /rows/batch-cells</code> — bulk update same field across multiple rows (smart fill)</li>
+                <li><code>DELETE /rows/{rowId}</code> — hard delete row from staging</li>
+                <li><code>PUT /rows/{rowId}/reject</code> — reject row with reason</li>
+                <li><code>PUT /rows/{rowId}/restore</code> — restore rejected row to Pending</li>
+                <li><code>POST /finalize</code> — create FormSubmission + FormSubmissionAnswers per Pending row; set assignment Submitted; set BulkSubmission Finalized; return summary</li>
+              </ul>
+            </li>
+            <li><strong>Portal UI</strong> — <code>PortalFormFillPage</code> shows a mode picker when <code>allowFileSubmission=true</code> and no existing submission: "Fill Out Manually" or "Upload a File"; upload mode shows a file drop zone; after upload shows status card ("Pending Review"); after finalize shows approved/rejected row counts with per-row rejection reasons</li>
+            <li><strong>Admin review page</strong> — <code>BulkSubmissionReviewPage</code> at <code>/admin/projects/:projectId/bulk-review/:faid</code>: column mapping section with auto-match by field label and per-header select; spreadsheet-style grid with inline click-to-edit cells; smart fill popup (after editing a cell, offers to apply the same value to other rows with that field empty — checkboxes + Select All); per-row reject (with reason dialog), restore, and delete actions; Finalize button with result dialog</li>
+            <li><strong>ProjectDetailPage</strong> — new "File Upload" column in the Forms tab shows status badge (Uploaded / In Review / Finalized) + "Open Review" button for any assignment with an active bulk submission</li>
+            <li><strong>IDOR security</strong> — all row-level endpoints use subquery <code>_db.ProjectFormAssignments.Any(a =&gt; a.Id == faid &amp;&amp; a.ProjectId == projectId)</code> to safely scope operations without EF navigation chain translation issues</li>
+          </ol>
+          <div class="deliverable">Customers can upload a CSV or Excel file as a form submission. CIS/Admin maps columns, edits cells inline, uses smart fill to propagate repeated values, rejects bad rows with reasons, and finalizes — creating one FormSubmission per approved row. Deployed 2026-03-18.</div>
+        </div>
+      </div>
+
       <div class="phase" id="phase-2">
         <div class="phase-header">
           <div class="phase-number">2</div>
@@ -1307,21 +1365,24 @@
       <!-- Phase 17 — Form Fill UI -->
       <div class="phase" id="phase-17">
         <div class="phase-header">
-          <div class="phase-number">17</div>
+          <div class="phase-number" style="background:var(--green)">17</div>
           <div>
-            <div class="phase-title">Form Fill UI <span class="badge badge-todo">Pending</span></div>
-            <div class="phase-goal">Customers fill out assigned forms in a dedicated UI with draft save and submit actions</div>
+            <div class="phase-title">Form Fill UI <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Customers fill out assigned forms in a dedicated UI with draft save, submit, cross-form prefill, and file upload options</div>
           </div>
         </div>
         <div class="phase-body">
           <ol>
             <li>Entities: <code>FormSubmission</code> (Status: Draft | Submitted, SubmittedAt), <code>FormSubmissionAnswer</code> (FormFieldId FK, Value string)</li>
-            <li>Portal endpoints: <code>GET/POST/PUT /api/portal/projects/{id}/forms/{faid}/submission</code> (draft save); <code>PUT .../submit</code> (finalize)</li>
-            <li><code>PortalFormFillPage.tsx</code> at <code>/portal/:projectId/forms/:assignmentId</code> — renders Form + FormFields as proper form UI; "Save Draft" and "Submit" actions; read-only view if already Submitted</li>
-            <li>Start/Continue buttons on PortalFormsTab navigate to this page</li>
-            <li>Admin: "View Submission" on Forms tab in ProjectDetailPage</li>
+            <li>Portal endpoints: <code>GET/POST/PUT /api/portal/projects/{id}/forms/{faid}/submission</code> (draft save); <code>PUT .../submit</code> (finalize); <code>GET /api/portal/dropdown-options</code> for all data source types; <code>GET /api/portal/projects/{id}/cross-form-data</code> for cross-form prefill and dropdown</li>
+            <li><code>PortalFormFillPage.tsx</code> — full field renderer supporting Text, Number, Date, Textarea, Checkbox, Dropdown (static data source + ProjectSubmission cross-form), Combobox (allowCustomValue), read-only submitted view, auto-fill read-only fields</li>
+            <li>Cross-form prefill: fields configured with <code>CrossFormPreFillFormId/FieldId</code> auto-populate on page load from the most recent submission on that project</li>
+            <li>Data source types supported in portal dropdowns: ReferenceData, ProductType, UnitOfMeasure, Category, ItemCategory, ItemCatalog, ProjectSubmission</li>
+            <li>Auto-fill enforcement: fields with <code>AutoFillValue</code> are shown read-only in the portal; the server discards any client-supplied value for those fields and injects the configured value on save/submit</li>
+            <li>File submission mode: when <code>allowFileSubmission=true</code> and no manual submission exists, portal shows a mode picker ("Fill Out Manually" / "Upload a File"); see Phase 1j for full bulk upload flow</li>
+            <li>Admin: Submissions tab in ProjectDetailPage shows all submitted answers in a tabular view with inline cell editing</li>
           </ol>
-          <div class="deliverable">Customers can complete and submit data collection forms from within the portal.</div>
+          <div class="deliverable">Customers can complete and submit data collection forms from within the portal, with support for draft saving, cross-form data prefill, dropdown data sources, auto-filled fields, and file upload as an alternative to manual entry. Deployed 2026-03-18.</div>
         </div>
       </div>
 
