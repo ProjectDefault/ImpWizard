@@ -5,12 +5,9 @@ export interface ProductTypeRefDto {
   name: string
 }
 
-export interface FieldValueDto {
-  fieldId: number
-  fieldName: string
-  fieldLabel: string
-  fieldType: 'Text' | 'Number' | 'Boolean'
-  value: string
+export interface CategoryRefDto {
+  id: number
+  name: string
 }
 
 export interface CatalogItemListDto {
@@ -18,8 +15,6 @@ export interface CatalogItemListDto {
   itemName: string
   isActive: boolean
   sortOrder: number
-  itemType: string | null
-  itemSubType: string | null
   supplier: string | null
   vendor: string | null
   vendorItemNumber: string | null
@@ -31,6 +26,7 @@ export interface CatalogItemListDto {
   programName: string | null
   programColor: string | null
   productTypes: string[]
+  categories: string[]
 }
 
 export interface CatalogItemDetailDto {
@@ -41,10 +37,6 @@ export interface CatalogItemDetailDto {
   programId: number | null
   programName: string | null
   programColor: string | null
-  catalogItemTypeId: number | null
-  catalogItemTypeName: string | null
-  catalogItemSubTypeId: number | null
-  catalogItemSubTypeName: string | null
   supplierId: number | null
   supplierName: string | null
   vendorId: number | null
@@ -57,7 +49,7 @@ export interface CatalogItemDetailDto {
   purchaseUomAbbreviation: string | null
   uomType: string | null
   productTypes: ProductTypeRefDto[]
-  fieldValues: FieldValueDto[]
+  categories: CategoryRefDto[]
 }
 
 export interface PagedResult<T> {
@@ -70,8 +62,7 @@ export interface PagedResult<T> {
 export interface CatalogFilters {
   search?: string
   programId?: number
-  typeId?: number
-  subTypeId?: number
+  categoryId?: number
   supplierId?: number
   vendorId?: number
   productTypeId?: number
@@ -83,8 +74,6 @@ export interface CatalogFilters {
 export interface CreateCatalogItemPayload {
   itemName: string
   programId?: number | null
-  catalogItemTypeId?: number | null
-  catalogItemSubTypeId?: number | null
   supplierId?: number | null
   vendorId?: number | null
   vendorItemNumber?: string
@@ -98,8 +87,6 @@ export interface UpdateCatalogItemPayload {
   itemName?: string
   isActive?: boolean
   programId?: number | null
-  catalogItemTypeId?: number | null
-  catalogItemSubTypeId?: number | null
   supplierId?: number | null
   vendorId?: number | null
   vendorItemNumber?: string
@@ -112,24 +99,16 @@ export interface UpdateCatalogItemPayload {
 export interface BulkUpdatePayload {
   itemIds: number[]
   programId?: number | null
-  catalogItemTypeId?: number | null
-  catalogItemSubTypeId?: number | null
   supplierId?: number | null
   vendorId?: number | null
   isActive?: boolean
   productTypeIds?: number[]
-}
-
-export interface FieldValueUpsert {
-  fieldId: number
-  value: string
+  categoryIds?: number[]
 }
 
 export interface ImportItemSpec {
   itemName: string
   programName?: string
-  typeName?: string
-  subTypeName?: string
   supplierName?: string
   vendorName?: string
   vendorItemNumber?: string
@@ -139,7 +118,7 @@ export interface ImportItemSpec {
   isActive?: boolean
   sortOrder?: number
   productTypeNames?: string[]
-  fieldValues?: FieldValueUpsert[]
+  categoryNames?: string[]
 }
 
 export interface ImportResultDto {
@@ -156,8 +135,7 @@ export async function getCatalogItems(filters: CatalogFilters = {}): Promise<Pag
   const params: Record<string, string> = {}
   if (filters.search) params.search = filters.search
   if (filters.programId != null) params.programId = String(filters.programId)
-  if (filters.typeId != null) params.typeId = String(filters.typeId)
-  if (filters.subTypeId != null) params.subTypeId = String(filters.subTypeId)
+  if (filters.categoryId != null) params.categoryId = String(filters.categoryId)
   if (filters.supplierId != null) params.supplierId = String(filters.supplierId)
   if (filters.vendorId != null) params.vendorId = String(filters.vendorId)
   if (filters.productTypeId != null) params.productTypeId = String(filters.productTypeId)
@@ -193,8 +171,8 @@ export async function setCatalogItemProductTypes(id: number, productTypeIds: num
   return data
 }
 
-export async function setCatalogItemFieldValues(id: number, values: FieldValueUpsert[]): Promise<CatalogItemDetailDto> {
-  const { data } = await apiClient.put<CatalogItemDetailDto>(`/catalog/${id}/field-values`, { values })
+export async function setCatalogItemCategories(id: number, categoryIds: number[]): Promise<CatalogItemDetailDto> {
+  const { data } = await apiClient.put<CatalogItemDetailDto>(`/catalog/${id}/categories`, categoryIds)
   return data
 }
 
@@ -212,7 +190,7 @@ export function exportCatalogUrl(filters: Omit<CatalogFilters, 'page' | 'pageSiz
   const params = new URLSearchParams()
   if (filters.search) params.set('search', filters.search)
   if (filters.programId != null) params.set('programId', String(filters.programId))
-  if (filters.typeId != null) params.set('typeId', String(filters.typeId))
+  if (filters.categoryId != null) params.set('categoryId', String(filters.categoryId))
   if (filters.supplierId != null) params.set('supplierId', String(filters.supplierId))
   if (filters.vendorId != null) params.set('vendorId', String(filters.vendorId))
   if (filters.isActive != null) params.set('isActive', String(filters.isActive))

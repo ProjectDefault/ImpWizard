@@ -66,7 +66,7 @@ const journeyItems = [
 
 const catalogItems = [
   { to: '/admin/catalog', label: 'Item Catalog', icon: Package },
-  { to: '/admin/settings/catalog-item-types', label: 'Item Types', icon: Tag },
+  { to: '/admin/catalog/ingredient-categories', label: 'Ingredient Categories', icon: Tag },
   { to: '/admin/catalog/meetings', label: 'Meeting Catalog', icon: Calendar },
   { to: '/admin/catalog/meeting-types', label: 'Meeting Types', icon: Tag },
   { to: '/admin/catalog/resources', label: 'Resource Catalog', icon: FileText },

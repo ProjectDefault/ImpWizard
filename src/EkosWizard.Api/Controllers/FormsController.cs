@@ -104,6 +104,7 @@ public class FormsController : ControllerBase
     private static string? GetDataSourceName(FormField ff) => ff.DataSourceType switch
     {
         "ProductType" => "All Product Types",
+        "ItemCategory" => "Ingredient Categories",
         "Category" => "All Categories",
         "ProjectSubmission" => ff.DataSourceForm?.Name != null
             ? $"Submissions: {ff.DataSourceForm.Name}"

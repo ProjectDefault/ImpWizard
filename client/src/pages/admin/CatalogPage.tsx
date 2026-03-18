@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,23 +17,19 @@ import { createSupplier } from '@/api/suppliers'
 import { createVendor } from '@/api/vendors'
 import {
   getCatalogItems, getCatalogItem, createCatalogItem, updateCatalogItem, deleteCatalogItem,
-  setCatalogItemProductTypes, setCatalogItemFieldValues,
+  setCatalogItemProductTypes, setCatalogItemCategories,
   bulkUpdateCatalogItems, importCatalogItems, exportCatalogUrl,
 } from '@/api/catalog'
 import type {
   CatalogItemListDto, CatalogItemDetailDto, CreateCatalogItemPayload,
   UpdateCatalogItemPayload, CatalogFilters, ImportItemSpec, BulkUpdatePayload,
 } from '@/api/catalog'
-import { getCatalogItemTypes } from '@/api/catalogItemTypes'
-import type { CatalogItemTypeDetailDto } from '@/api/catalogItemTypes'
+import { getItemCategories } from '@/api/itemCategories'
 import { getSuppliers } from '@/api/suppliers'
 import { getVendors } from '@/api/vendors'
 import { getPrograms } from '@/api/programs'
 import { getProductTypes } from '@/api/productTypes'
 import { getUnitsOfMeasure } from '@/api/unitsOfMeasure'
-import type { ProgramDto } from '@/api/programs'
-import type { ProductTypeListDto } from '@/api/productTypes'
-import type { UomDto } from '@/api/unitsOfMeasure'
 
 const PAGE_SIZE = 50
 
@@ -42,8 +38,6 @@ type SheetMode = 'create' | 'edit'
 interface ItemForm {
   itemName: string
   programId: number | null
-  catalogItemTypeId: number | null
-  catalogItemSubTypeId: number | null
   supplierId: number | null
   vendorId: number | null
   vendorItemNumber: string
@@ -53,14 +47,12 @@ interface ItemForm {
   isActive: boolean
   sortOrder: number
   productTypeIds: number[]
-  fieldValues: Record<number, string>
+  categoryIds: number[]
 }
 
 const emptyForm = (): ItemForm => ({
   itemName: '',
   programId: null,
-  catalogItemTypeId: null,
-  catalogItemSubTypeId: null,
   supplierId: null,
   vendorId: null,
   vendorItemNumber: '',
@@ -70,7 +62,7 @@ const emptyForm = (): ItemForm => ({
   isActive: true,
   sortOrder: 0,
   productTypeIds: [],
-  fieldValues: {},
+  categoryIds: [],
 })
 
 export default function CatalogPage() {
@@ -79,7 +71,7 @@ export default function CatalogPage() {
   // Filters
   const [search, setSearch] = useState('')
   const [programFilter, setProgramFilter] = useState<number | null>(null)
-  const [typeFilter, setTypeFilter] = useState<number | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<number | null>(null)
   const [supplierFilter, setSupplierFilter] = useState<number | null>(null)
   const [vendorFilter, setVendorFilter] = useState<number | null>(null)
   const [productTypeFilter, setProductTypeFilter] = useState<number | null>(null)
@@ -97,9 +89,6 @@ export default function CatalogPage() {
   const [editItemId, setEditItemId] = useState<number | null>(null)
   const [form, setForm] = useState<ItemForm>(emptyForm())
 
-  // Computed type fields (for dynamic custom fields in sheet)
-  const [sheetTypeDetail, setSheetTypeDetail] = useState<CatalogItemTypeDetailDto | null>(null)
-
   // Inline Supplier quick-create
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false)
   const [newSupplierName, setNewSupplierName] = useState('')
@@ -112,7 +101,7 @@ export default function CatalogPage() {
   const filters: CatalogFilters = {
     search: search || undefined,
     programId: programFilter ?? undefined,
-    typeId: typeFilter ?? undefined,
+    categoryId: categoryFilter ?? undefined,
     supplierId: supplierFilter ?? undefined,
     vendorId: vendorFilter ?? undefined,
     productTypeId: productTypeFilter ?? undefined,
@@ -127,7 +116,7 @@ export default function CatalogPage() {
     placeholderData: prev => prev,
   })
 
-  const { data: types } = useQuery({ queryKey: ['catalog-item-types'], queryFn: getCatalogItemTypes })
+  const { data: categories } = useQuery({ queryKey: ['item-categories'], queryFn: getItemCategories })
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: getSuppliers })
   const { data: vendors } = useQuery({ queryKey: ['vendors'], queryFn: getVendors })
   const { data: programs } = useQuery({ queryKey: ['programs'], queryFn: getPrograms })
@@ -140,18 +129,6 @@ export default function CatalogPage() {
     enabled: editItemId !== null && sheetMode === 'edit',
   })
 
-  // Load type detail when type changes in form
-  const loadTypeDetail = useCallback(async (typeId: number | null) => {
-    if (!typeId) { setSheetTypeDetail(null); return }
-    try {
-      const { getCatalogItemType } = await import('@/api/catalogItemTypes')
-      const detail = await getCatalogItemType(typeId)
-      setSheetTypeDetail(detail)
-    } catch {
-      setSheetTypeDetail(null)
-    }
-  }, [])
-
   // When editDetail loads, populate form
   const prevEditId = useState<number | null>(null)
   if (editDetail && editItemId !== prevEditId[0]) {
@@ -159,8 +136,6 @@ export default function CatalogPage() {
     setForm({
       itemName: editDetail.itemName,
       programId: editDetail.programId,
-      catalogItemTypeId: editDetail.catalogItemTypeId,
-      catalogItemSubTypeId: editDetail.catalogItemSubTypeId,
       supplierId: editDetail.supplierId,
       vendorId: editDetail.vendorId,
       vendorItemNumber: editDetail.vendorItemNumber ?? '',
@@ -170,9 +145,8 @@ export default function CatalogPage() {
       isActive: editDetail.isActive,
       sortOrder: editDetail.sortOrder,
       productTypeIds: editDetail.productTypes.map(pt => pt.id),
-      fieldValues: Object.fromEntries(editDetail.fieldValues.map(fv => [fv.fieldId, fv.value])),
+      categoryIds: editDetail.categories.map(c => c.id),
     })
-    if (editDetail.catalogItemTypeId) loadTypeDetail(editDetail.catalogItemTypeId)
   }
 
   // --- Mutations ---
@@ -183,8 +157,6 @@ export default function CatalogPage() {
       const payload: CreateCatalogItemPayload = {
         itemName: f.itemName,
         programId: f.programId,
-        catalogItemTypeId: f.catalogItemTypeId,
-        catalogItemSubTypeId: f.catalogItemSubTypeId,
         supplierId: f.supplierId,
         vendorId: f.vendorId,
         vendorItemNumber: f.vendorItemNumber || undefined,
@@ -195,11 +167,10 @@ export default function CatalogPage() {
       }
       const item = await createCatalogItem(payload)
       if (f.productTypeIds.length > 0) await setCatalogItemProductTypes(item.id, f.productTypeIds)
-      const fvUpserts = Object.entries(f.fieldValues).filter(([, v]) => v !== '').map(([k, v]) => ({ fieldId: Number(k), value: v }))
-      if (fvUpserts.length > 0) await setCatalogItemFieldValues(item.id, fvUpserts)
+      if (f.categoryIds.length > 0) await setCatalogItemCategories(item.id, f.categoryIds)
       return item
     },
-    onSuccess: () => { invalidateCatalog(); toast.success('Item created'); setSheetOpen(false); setForm(emptyForm()); setSheetTypeDetail(null) },
+    onSuccess: () => { invalidateCatalog(); toast.success('Item created'); setSheetOpen(false); setForm(emptyForm()) },
     onError: () => toast.error('Failed to create item'),
   })
 
@@ -209,8 +180,6 @@ export default function CatalogPage() {
         itemName: f.itemName,
         isActive: f.isActive,
         programId: f.programId,
-        catalogItemTypeId: f.catalogItemTypeId,
-        catalogItemSubTypeId: f.catalogItemSubTypeId,
         supplierId: f.supplierId,
         vendorId: f.vendorId,
         vendorItemNumber: f.vendorItemNumber || undefined,
@@ -221,10 +190,9 @@ export default function CatalogPage() {
       }
       await updateCatalogItem(id, payload)
       await setCatalogItemProductTypes(id, f.productTypeIds)
-      const fvUpserts = Object.entries(f.fieldValues).filter(([, v]) => v !== '').map(([k, v]) => ({ fieldId: Number(k), value: v }))
-      if (fvUpserts.length > 0) await setCatalogItemFieldValues(id, fvUpserts)
+      await setCatalogItemCategories(id, f.categoryIds)
     },
-    onSuccess: () => { invalidateCatalog(); toast.success('Item updated'); setSheetOpen(false); setEditItemId(null); setSheetTypeDetail(null) },
+    onSuccess: () => { invalidateCatalog(); toast.success('Item updated'); setSheetOpen(false); setEditItemId(null) },
     onError: () => toast.error('Failed to update item'),
   })
 
@@ -283,7 +251,7 @@ export default function CatalogPage() {
 
   // --- Helpers ---
   const resetFilters = () => {
-    setSearch(''); setProgramFilter(null); setTypeFilter(null)
+    setSearch(''); setProgramFilter(null); setCategoryFilter(null)
     setSupplierFilter(null); setVendorFilter(null); setProductTypeFilter(null)
     setShowInactive(false); setPage(1)
   }
@@ -293,7 +261,6 @@ export default function CatalogPage() {
     setEditItemId(null)
     prevEditId[1](null)
     setForm(emptyForm())
-    setSheetTypeDetail(null)
     setSheetOpen(true)
   }
 
@@ -347,8 +314,6 @@ export default function CatalogPage() {
       return {
         itemName: obj['itemname'] ?? obj['name'] ?? '',
         programName: obj['program'] || obj['programname'] || undefined,
-        typeName: obj['itemtype'] || obj['type'] || undefined,
-        subTypeName: obj['itemsubtype'] || obj['subtype'] || undefined,
         supplierName: obj['supplier'] || obj['suppliername'] || undefined,
         vendorName: obj['vendor'] || obj['vendorname'] || undefined,
         vendorItemNumber: obj['vendoritemnumber'] || obj['vendorsku'] || undefined,
@@ -357,6 +322,7 @@ export default function CatalogPage() {
         purchaseUomName: obj['purchaseuom'] || obj['uom'] || undefined,
         isActive: obj['isactive'] !== 'false',
         productTypeNames: obj['producttypes'] ? obj['producttypes'].split('|').filter(Boolean) : undefined,
+        categoryNames: obj['categories'] ? obj['categories'].split('|').filter(Boolean) : undefined,
       } satisfies ImportItemSpec
     }).filter(s => s.itemName)
   }
@@ -377,15 +343,6 @@ export default function CatalogPage() {
   const showingFrom = ((page - 1) * PAGE_SIZE) + 1
   const showingTo = Math.min(page * PAGE_SIZE, catalogData?.totalCount ?? 0)
 
-  // Available sub-types for selected type
-  const selectedType = types?.find(t => t.id === form.catalogItemTypeId)
-  const subTypesForSelected = sheetTypeDetail?.subTypes ?? []
-
-  const handleTypeChange = (typeId: number | null) => {
-    setForm(f => ({ ...f, catalogItemTypeId: typeId, catalogItemSubTypeId: null, fieldValues: {} }))
-    loadTypeDetail(typeId)
-  }
-
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.itemName.trim()) { toast.error('Item name is required'); return }
@@ -396,7 +353,7 @@ export default function CatalogPage() {
     }
   }
 
-  const activeFiltersCount = [programFilter, typeFilter, supplierFilter, vendorFilter, productTypeFilter, showInactive ? 'inactive' : null, search].filter(Boolean).length
+  const activeFiltersCount = [programFilter, categoryFilter, supplierFilter, vendorFilter, productTypeFilter, showInactive ? 'inactive' : null, search].filter(Boolean).length
 
   return (
     <div className="flex flex-col h-full p-6 gap-4">
@@ -413,7 +370,7 @@ export default function CatalogPage() {
             </Button>
             <input type="file" accept=".csv" className="hidden" onChange={handleImportFile} />
           </label>
-          <a href={exportCatalogUrl({ search: search || undefined, programId: programFilter ?? undefined, typeId: typeFilter ?? undefined, supplierId: supplierFilter ?? undefined, vendorId: vendorFilter ?? undefined, isActive: showInactive ? undefined : true })} download="catalog.csv">
+          <a href={exportCatalogUrl({ search: search || undefined, programId: programFilter ?? undefined, categoryId: categoryFilter ?? undefined, supplierId: supplierFilter ?? undefined, vendorId: vendorFilter ?? undefined, isActive: showInactive ? undefined : true })} download="catalog.csv">
             <Button variant="outline" size="sm"><Download className="h-4 w-4 mr-1" /> Export CSV</Button>
           </a>
           <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Item</Button>
@@ -440,11 +397,11 @@ export default function CatalogPage() {
           </SelectContent>
         </Select>
 
-        <Select value={typeFilter?.toString() ?? 'all'} onValueChange={v => { setTypeFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Type" /></SelectTrigger>
+        <Select value={categoryFilter?.toString() ?? 'all'} onValueChange={v => { setCategoryFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Category" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {types?.filter(t => t.isActive).map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories?.filter(c => c.isActive).map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
 
@@ -503,8 +460,7 @@ export default function CatalogPage() {
                 />
               </TableHead>
               <TableHead>Item Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Sub-Type</TableHead>
+              <TableHead>Categories</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Vendor</TableHead>
               <TableHead>Vendor SKU</TableHead>
@@ -522,12 +478,12 @@ export default function CatalogPage() {
             {catalogLoading ? (
               [...Array(10)].map((_, i) => (
                 <TableRow key={i}>
-                  {[...Array(15)].map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
+                  {[...Array(14)].map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
                 </TableRow>
               ))
             ) : catalogData?.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={15} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
                   No items found. Try adjusting your filters or add a new item.
                 </TableCell>
               </TableRow>
@@ -538,8 +494,13 @@ export default function CatalogPage() {
                     <Checkbox checked={selectedIds.has(item.id)} onCheckedChange={() => toggleSelected(item.id)} />
                   </TableCell>
                   <TableCell className="font-medium max-w-[200px] truncate">{item.itemName}</TableCell>
-                  <TableCell className="text-sm">{item.itemType ?? '—'}</TableCell>
-                  <TableCell className="text-sm">{item.itemSubType ?? '—'}</TableCell>
+                  <TableCell className="text-sm max-w-[140px]">
+                    {item.categories.length === 0 ? '—' : (
+                      <div className="flex flex-wrap gap-1">
+                        {item.categories.map(c => <Badge key={c} variant="outline" className="text-xs">{c}</Badge>)}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm">{item.supplier ?? '—'}</TableCell>
                   <TableCell className="text-sm">{item.vendor ?? '—'}</TableCell>
                   <TableCell className="text-sm">{item.vendorItemNumber ?? '—'}</TableCell>
@@ -596,7 +557,7 @@ export default function CatalogPage() {
       )}
 
       {/* Item Create/Edit Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={open => { if (!open) { setSheetOpen(false); setEditItemId(null); setSheetTypeDetail(null) } }}>
+      <Sheet open={sheetOpen} onOpenChange={open => { if (!open) { setSheetOpen(false); setEditItemId(null) } }}>
         <SheetContent className="w-[520px] sm:max-w-[520px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{sheetMode === 'create' ? 'Add Catalog Item' : 'Edit Catalog Item'}</SheetTitle>
@@ -607,41 +568,16 @@ export default function CatalogPage() {
               <Input value={form.itemName} onChange={e => setForm(f => ({ ...f, itemName: e.target.value }))} placeholder="Item name" required />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Program</Label>
-                <Select value={form.programId?.toString() ?? 'none'} onValueChange={v => setForm(f => ({ ...f, programId: v === 'none' ? null : Number(v) }))}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {programs?.filter(p => p.isActive).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Item Type</Label>
-                <Select value={form.catalogItemTypeId?.toString() ?? 'none'} onValueChange={v => handleTypeChange(v === 'none' ? null : Number(v))}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {types?.filter(t => t.isActive).map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1">
+              <Label>Program</Label>
+              <Select value={form.programId?.toString() ?? 'none'} onValueChange={v => setForm(f => ({ ...f, programId: v === 'none' ? null : Number(v) }))}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {programs?.filter(p => p.isActive).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-
-            {form.catalogItemTypeId && subTypesForSelected.length > 0 && (
-              <div className="space-y-1">
-                <Label>Sub-Type</Label>
-                <Select value={form.catalogItemSubTypeId?.toString() ?? 'none'} onValueChange={v => setForm(f => ({ ...f, catalogItemSubTypeId: v === 'none' ? null : Number(v) }))}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {subTypesForSelected.filter(s => s.isActive).map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -703,6 +639,27 @@ export default function CatalogPage() {
               </Select>
             </div>
 
+            {/* Ingredient Categories */}
+            {categories && categories.filter(c => c.isActive).length > 0 && (
+              <div className="space-y-2">
+                <Label>Ingredient Categories</Label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.filter(c => c.isActive).map(c => (
+                    <label key={c.id} className="flex items-center gap-1.5 cursor-pointer">
+                      <Checkbox
+                        checked={form.categoryIds.includes(c.id)}
+                        onCheckedChange={checked => setForm(f => ({
+                          ...f,
+                          categoryIds: checked ? [...f.categoryIds, c.id] : f.categoryIds.filter(id => id !== c.id)
+                        }))}
+                      />
+                      <span className="text-sm">{c.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Product Types */}
             <div className="space-y-2">
               <Label>Product Types</Label>
@@ -721,36 +678,6 @@ export default function CatalogPage() {
                 ))}
               </div>
             </div>
-
-            {/* Dynamic Custom Fields */}
-            {sheetTypeDetail && sheetTypeDetail.fields.length > 0 && (
-              <div className="space-y-3 border-t pt-3">
-                <p className="text-sm font-semibold">{sheetTypeDetail.name} Fields</p>
-                {sheetTypeDetail.fields.map(field => (
-                  <div key={field.id} className="space-y-1">
-                    <Label>{field.fieldLabel}{field.isRequired && <span className="text-destructive ml-1">*</span>}</Label>
-                    {field.fieldType === 'Boolean' ? (
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={form.fieldValues[field.id] === 'true'}
-                          onCheckedChange={v => setForm(f => ({ ...f, fieldValues: { ...f.fieldValues, [field.id]: v ? 'true' : 'false' } }))}
-                        />
-                        <span className="text-sm">{form.fieldValues[field.id] === 'true' ? 'Yes' : 'No'}</span>
-                      </div>
-                    ) : (
-                      <Input
-                        type={field.fieldType === 'Number' ? 'number' : 'text'}
-                        step={field.fieldType === 'Number' ? 'any' : undefined}
-                        value={form.fieldValues[field.id] ?? ''}
-                        onChange={e => setForm(f => ({ ...f, fieldValues: { ...f.fieldValues, [field.id]: e.target.value } }))}
-                        placeholder={field.fieldLabel}
-                        required={field.isRequired}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -823,18 +750,6 @@ export default function CatalogPage() {
                   <SelectItem value="unchanged">Unchanged</SelectItem>
                   <SelectItem value="clear">Clear (remove)</SelectItem>
                   {programs?.filter(p => p.isActive).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Item Type</Label>
-              <Select value={bulkForm.catalogItemTypeId?.toString() ?? 'unchanged'} onValueChange={v => setBulkForm(f => ({ ...f, catalogItemTypeId: v === 'unchanged' ? undefined : v === 'clear' ? 0 : Number(v) }))}>
-                <SelectTrigger><SelectValue placeholder="Unchanged" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unchanged">Unchanged</SelectItem>
-                  <SelectItem value="clear">Clear (remove)</SelectItem>
-                  {types?.filter(t => t.isActive).map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -24,11 +24,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<UserProgramAccess> UserProgramAccess => Set<UserProgramAccess>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Vendor> Vendors => Set<Vendor>();
-    public DbSet<CatalogItemType> CatalogItemTypes => Set<CatalogItemType>();
-    public DbSet<CatalogItemSubType> CatalogItemSubTypes => Set<CatalogItemSubType>();
-    public DbSet<CatalogItemTypeField> CatalogItemTypeFields => Set<CatalogItemTypeField>();
+    public DbSet<ItemCategory> ItemCategories => Set<ItemCategory>();
     public DbSet<CatalogItem> CatalogItems => Set<CatalogItem>();
-    public DbSet<CatalogItemFieldValue> CatalogItemFieldValues => Set<CatalogItemFieldValue>();
     public DbSet<ProjectUserAccess> ProjectUserAccess => Set<ProjectUserAccess>();
     public DbSet<Journey> Journeys => Set<Journey>();
     public DbSet<JourneyStageCategory> JourneyStageCategories => Set<JourneyStageCategory>();
@@ -228,22 +225,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
              .OnDelete(DeleteBehavior.SetNull);
         });
 
-        builder.Entity<CatalogItemSubType>(e =>
-        {
-            e.HasOne(s => s.CatalogItemType)
-             .WithMany(t => t.SubTypes)
-             .HasForeignKey(s => s.CatalogItemTypeId)
-             .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        builder.Entity<CatalogItemTypeField>(e =>
-        {
-            e.HasOne(f => f.CatalogItemType)
-             .WithMany(t => t.Fields)
-             .HasForeignKey(f => f.CatalogItemTypeId)
-             .OnDelete(DeleteBehavior.Cascade);
-        });
-
         builder.Entity<CatalogItem>(e =>
         {
             e.Property(ci => ci.PurchaseAmountPerUom).HasPrecision(18, 4);
@@ -252,16 +233,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
              .WithMany()
              .HasForeignKey(ci => ci.ProgramId)
              .OnDelete(DeleteBehavior.SetNull);
-
-            e.HasOne(ci => ci.CatalogItemType)
-             .WithMany()
-             .HasForeignKey(ci => ci.CatalogItemTypeId)
-             .OnDelete(DeleteBehavior.ClientSetNull);
-
-            e.HasOne(ci => ci.CatalogItemSubType)
-             .WithMany()
-             .HasForeignKey(ci => ci.CatalogItemSubTypeId)
-             .OnDelete(DeleteBehavior.ClientSetNull);
 
             e.HasOne(ci => ci.Supplier)
              .WithMany()
@@ -277,19 +248,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
              .WithMany()
              .HasForeignKey(ci => ci.PurchaseUomId)
              .OnDelete(DeleteBehavior.SetNull);
-
-            e.HasMany(ci => ci.FieldValues)
-             .WithOne(fv => fv.CatalogItem)
-             .HasForeignKey(fv => fv.CatalogItemId)
-             .OnDelete(DeleteBehavior.Cascade);
         });
 
-        builder.Entity<CatalogItemFieldValue>(e =>
+        builder.Entity<ItemCategory>(e =>
         {
-            e.HasOne(fv => fv.CatalogItemTypeField)
-             .WithMany()
-             .HasForeignKey(fv => fv.CatalogItemTypeFieldId)
-             .OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(ic => ic.CatalogItems)
+             .WithMany(ci => ci.Categories)
+             .UsingEntity(
+                 "CatalogItemCategories",
+                 r => r.HasOne(typeof(CatalogItem)).WithMany().HasForeignKey("CatalogItemsId").OnDelete(DeleteBehavior.Cascade),
+                 l => l.HasOne(typeof(ItemCategory)).WithMany().HasForeignKey("ItemCategoriesId").OnDelete(DeleteBehavior.Cascade),
+                 j =>
+                 {
+                     j.HasKey("CatalogItemsId", "ItemCategoriesId");
+                     j.ToTable("CatalogItemCategories");
+                 }
+             );
         });
 
         builder.Entity<ProjectUserAccess>(e =>

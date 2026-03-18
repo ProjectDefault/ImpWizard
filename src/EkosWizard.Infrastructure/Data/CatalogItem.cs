@@ -12,12 +12,6 @@ public class CatalogItem
     public int? ProgramId { get; set; }
     public Program? Program { get; set; }
 
-    public int? CatalogItemTypeId { get; set; }
-    public CatalogItemType? CatalogItemType { get; set; }
-
-    public int? CatalogItemSubTypeId { get; set; }
-    public CatalogItemSubType? CatalogItemSubType { get; set; }
-
     public int? SupplierId { get; set; }
     public Supplier? Supplier { get; set; }
 
@@ -35,5 +29,5 @@ public class CatalogItem
     public UnitOfMeasure? PurchaseUom { get; set; }
 
     public ICollection<ProductType> ProductTypes { get; set; } = [];
-    public ICollection<CatalogItemFieldValue> FieldValues { get; set; } = [];
+    public ICollection<ItemCategory> Categories { get; set; } = [];
 }

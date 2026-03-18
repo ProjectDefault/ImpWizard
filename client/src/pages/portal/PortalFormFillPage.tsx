@@ -118,7 +118,7 @@ function PortalFieldRenderer({
   })
 
   // Static data source options (ReferenceData, ProductType, UnitOfMeasure, Category)
-  const staticDataSourceTypes = ['ReferenceData', 'ProductType', 'UnitOfMeasure', 'Category']
+  const staticDataSourceTypes = ['ReferenceData', 'ProductType', 'UnitOfMeasure', 'Category', 'ItemCategory']
   const { data: staticOptions = [], isLoading: staticLoading } = useQuery({
     queryKey: ['dropdown-options', field.dataSourceType, field.dataSourceId],
     queryFn: () => getDropdownOptions(field.dataSourceType, field.dataSourceId),

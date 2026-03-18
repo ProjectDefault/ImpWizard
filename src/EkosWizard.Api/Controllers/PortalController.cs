@@ -765,6 +765,13 @@ public class PortalController : ControllerBase
                     .Select(u => u.Name)
                     .ToListAsync(),
 
+            "ItemCategory" =>
+                await _db.ItemCategories
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
+                    .Select(c => c.Name)
+                    .ToListAsync(),
+
             _ => []
         };
 

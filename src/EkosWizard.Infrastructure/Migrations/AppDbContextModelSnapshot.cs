@@ -386,6 +386,53 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.ToTable("ImplementationTypes");
                 });
 
+            modelBuilder.Entity("ImpWizard.Infrastructure.Data.ItemCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ItemCategories");
+                });
+
+            modelBuilder.Entity("CatalogItemCategories", b =>
+                {
+                    b.Property<int>("CatalogItemsId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ItemCategoriesId")
+                        .HasColumnType("int");
+
+                    b.HasKey("CatalogItemsId", "ItemCategoriesId");
+
+                    b.HasIndex("ItemCategoriesId");
+
+                    b.ToTable("CatalogItemCategories");
+                });
+
             modelBuilder.Entity("ImpWizard.Infrastructure.Data.ImportTemplate", b =>
                 {
                     b.Property<int>("Id")
@@ -1004,6 +1051,21 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.HasOne("ImpWizard.Infrastructure.Data.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CatalogItemCategories", b =>
+                {
+                    b.HasOne("ImpWizard.Infrastructure.Data.CatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogItemsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ImpWizard.Infrastructure.Data.ItemCategory", null)
+                        .WithMany()
+                        .HasForeignKey("ItemCategoriesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

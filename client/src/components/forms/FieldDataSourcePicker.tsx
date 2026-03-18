@@ -76,6 +76,7 @@ export function FieldDataSourcePicker({
             <SelectItem value="ProductType">Product Types</SelectItem>
             <SelectItem value="UnitOfMeasure">Units of Measure</SelectItem>
             <SelectItem value="Category">Categories</SelectItem>
+            <SelectItem value="ItemCategory">Ingredient Categories</SelectItem>
             <SelectItem value="ProjectSubmission">Project Submission</SelectItem>
           </SelectContent>
         </Select>

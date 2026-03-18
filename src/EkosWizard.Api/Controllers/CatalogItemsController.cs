@@ -24,37 +24,33 @@ public class CatalogItemsController : ControllerBase
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
     public record ProductTypeRefDto(int Id, string Name);
-    public record FieldValueDto(int FieldId, string FieldName, string FieldLabel, string FieldType, string Value);
+    public record CategoryRefDto(int Id, string Name);
 
     public record CatalogItemListDto(
         int Id, string ItemName, bool IsActive, int SortOrder,
-        string? ItemType, string? ItemSubType,
         string? Supplier, string? Vendor, string? VendorItemNumber,
         string? PurchaseUomDescription, decimal? PurchaseAmountPerUom,
         string? PurchaseUomName, string? PurchaseUomAbbreviation, string? UomType,
         string? ProgramName, string? ProgramColor,
-        IEnumerable<string> ProductTypes);
+        IEnumerable<string> ProductTypes,
+        IEnumerable<string> Categories);
 
     public record CatalogItemDetailDto(
         int Id, string ItemName, bool IsActive, int SortOrder,
         int? ProgramId, string? ProgramName, string? ProgramColor,
-        int? CatalogItemTypeId, string? CatalogItemTypeName,
-        int? CatalogItemSubTypeId, string? CatalogItemSubTypeName,
         int? SupplierId, string? SupplierName,
         int? VendorId, string? VendorName,
         string? VendorItemNumber,
         string? PurchaseUomDescription, decimal? PurchaseAmountPerUom,
         int? PurchaseUomId, string? PurchaseUomName, string? PurchaseUomAbbreviation, string? UomType,
         IEnumerable<ProductTypeRefDto> ProductTypes,
-        IEnumerable<FieldValueDto> FieldValues);
+        IEnumerable<CategoryRefDto> Categories);
 
     public record PagedResult<T>(IEnumerable<T> Items, int TotalCount, int Page, int PageSize);
 
     public record CreateCatalogItemRequest(
         string ItemName,
         int? ProgramId,
-        int? CatalogItemTypeId,
-        int? CatalogItemSubTypeId,
         int? SupplierId,
         int? VendorId,
         string? VendorItemNumber,
@@ -67,8 +63,6 @@ public class CatalogItemsController : ControllerBase
         string? ItemName,
         bool? IsActive,
         int? ProgramId,
-        int? CatalogItemTypeId,
-        int? CatalogItemSubTypeId,
         int? SupplierId,
         int? VendorId,
         string? VendorItemNumber,
@@ -79,23 +73,17 @@ public class CatalogItemsController : ControllerBase
 
     public record BulkUpdateRequest(
         int[] ItemIds,
-        int? ProgramId,           // null = no change; 0 = clear
-        int? CatalogItemTypeId,   // null = no change; 0 = clear
-        int? CatalogItemSubTypeId,
+        int? ProgramId,       // null = no change; 0 = clear
         int? SupplierId,
         int? VendorId,
         bool? IsActive,
-        int[]? ProductTypeIds);   // null = no change; [] = clear all
-
-    public record SetFieldValuesRequest(IEnumerable<FieldValueUpsert> Values);
-    public record FieldValueUpsert(int FieldId, string Value);
+        int[]? ProductTypeIds,  // null = no change; [] = clear all
+        int[]? CategoryIds);    // null = no change; [] = clear all
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static CatalogItemListDto ToListDto(CatalogItem ci) => new(
         ci.Id, ci.ItemName, ci.IsActive, ci.SortOrder,
-        ci.CatalogItemType?.Name,
-        ci.CatalogItemSubType?.Name,
         ci.Supplier?.Name,
         ci.Vendor?.Name,
         ci.VendorItemNumber,
@@ -106,31 +94,28 @@ public class CatalogItemsController : ControllerBase
         ci.PurchaseUom?.UnitCategory,
         ci.Program?.Name,
         ci.Program?.Color,
-        ci.ProductTypes.Select(pt => pt.Name));
+        ci.ProductTypes.Select(pt => pt.Name),
+        ci.Categories.Select(c => c.Name));
 
     private static CatalogItemDetailDto ToDetailDto(CatalogItem ci) => new(
         ci.Id, ci.ItemName, ci.IsActive, ci.SortOrder,
         ci.ProgramId, ci.Program?.Name, ci.Program?.Color,
-        ci.CatalogItemTypeId, ci.CatalogItemType?.Name,
-        ci.CatalogItemSubTypeId, ci.CatalogItemSubType?.Name,
         ci.SupplierId, ci.Supplier?.Name,
         ci.VendorId, ci.Vendor?.Name,
         ci.VendorItemNumber,
         ci.PurchaseUomDescription, ci.PurchaseAmountPerUom,
         ci.PurchaseUomId, ci.PurchaseUom?.Name, ci.PurchaseUom?.Abbreviation, ci.PurchaseUom?.UnitCategory,
         ci.ProductTypes.Select(pt => new ProductTypeRefDto(pt.Id, pt.Name)),
-        ci.FieldValues.Select(fv => new FieldValueDto(fv.CatalogItemTypeFieldId, fv.CatalogItemTypeField.FieldName, fv.CatalogItemTypeField.FieldLabel, fv.CatalogItemTypeField.FieldType, fv.Value)));
+        ci.Categories.Select(c => new CategoryRefDto(c.Id, c.Name)));
 
     private IQueryable<CatalogItem> BuildQuery() =>
         _db.CatalogItems
             .Include(ci => ci.Program)
-            .Include(ci => ci.CatalogItemType)
-            .Include(ci => ci.CatalogItemSubType)
             .Include(ci => ci.Supplier)
             .Include(ci => ci.Vendor)
             .Include(ci => ci.PurchaseUom)
             .Include(ci => ci.ProductTypes)
-            .Include(ci => ci.FieldValues).ThenInclude(fv => fv.CatalogItemTypeField);
+            .Include(ci => ci.Categories);
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
 
@@ -138,8 +123,7 @@ public class CatalogItemsController : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
         [FromQuery] int? programId,
-        [FromQuery] int? typeId,
-        [FromQuery] int? subTypeId,
+        [FromQuery] int? categoryId,
         [FromQuery] int? supplierId,
         [FromQuery] int? vendorId,
         [FromQuery] int? productTypeId,
@@ -160,10 +144,8 @@ public class CatalogItemsController : ControllerBase
             query = query.Where(ci => ci.IsActive);
         if (programId.HasValue)
             query = query.Where(ci => ci.ProgramId == programId.Value);
-        if (typeId.HasValue)
-            query = query.Where(ci => ci.CatalogItemTypeId == typeId.Value);
-        if (subTypeId.HasValue)
-            query = query.Where(ci => ci.CatalogItemSubTypeId == subTypeId.Value);
+        if (categoryId.HasValue)
+            query = query.Where(ci => ci.Categories.Any(c => c.Id == categoryId.Value));
         if (supplierId.HasValue)
             query = query.Where(ci => ci.SupplierId == supplierId.Value);
         if (vendorId.HasValue)
@@ -199,8 +181,6 @@ public class CatalogItemsController : ControllerBase
         {
             ItemName = req.ItemName.Trim(),
             ProgramId = req.ProgramId == 0 ? null : req.ProgramId,
-            CatalogItemTypeId = req.CatalogItemTypeId == 0 ? null : req.CatalogItemTypeId,
-            CatalogItemSubTypeId = req.CatalogItemSubTypeId == 0 ? null : req.CatalogItemSubTypeId,
             SupplierId = req.SupplierId == 0 ? null : req.SupplierId,
             VendorId = req.VendorId == 0 ? null : req.VendorId,
             VendorItemNumber = req.VendorItemNumber?.Trim(),
@@ -229,8 +209,6 @@ public class CatalogItemsController : ControllerBase
         if (req.ItemName is not null) ci.ItemName = req.ItemName.Trim();
         if (req.IsActive is not null) ci.IsActive = req.IsActive.Value;
         if (req.ProgramId is not null) ci.ProgramId = req.ProgramId == 0 ? null : req.ProgramId;
-        if (req.CatalogItemTypeId is not null) ci.CatalogItemTypeId = req.CatalogItemTypeId == 0 ? null : req.CatalogItemTypeId;
-        if (req.CatalogItemSubTypeId is not null) ci.CatalogItemSubTypeId = req.CatalogItemSubTypeId == 0 ? null : req.CatalogItemSubTypeId;
         if (req.SupplierId is not null) ci.SupplierId = req.SupplierId == 0 ? null : req.SupplierId;
         if (req.VendorId is not null) ci.VendorId = req.VendorId == 0 ? null : req.VendorId;
         if (req.VendorItemNumber is not null) ci.VendorItemNumber = req.VendorItemNumber.Trim();
@@ -278,32 +256,18 @@ public class CatalogItemsController : ControllerBase
         return Ok(ToDetailDto(result));
     }
 
-    // ── Custom Field Values ───────────────────────────────────────────────────
+    // ── Categories ────────────────────────────────────────────────────────────
 
-    [HttpPut("{id:int}/field-values")]
+    [HttpPut("{id:int}/categories")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> SetFieldValues(int id, [FromBody] SetFieldValuesRequest req)
+    public async Task<IActionResult> SetCategories(int id, [FromBody] int[] categoryIds)
     {
-        var ci = await _db.CatalogItems.Include(ci => ci.FieldValues).FirstOrDefaultAsync(ci => ci.Id == id);
+        var ci = await _db.CatalogItems.Include(ci => ci.Categories).FirstOrDefaultAsync(ci => ci.Id == id);
         if (ci is null) return NotFound();
 
-        foreach (var upsert in req.Values)
-        {
-            var existing = ci.FieldValues.FirstOrDefault(fv => fv.CatalogItemTypeFieldId == upsert.FieldId);
-            if (existing is not null)
-            {
-                existing.Value = upsert.Value;
-            }
-            else
-            {
-                ci.FieldValues.Add(new CatalogItemFieldValue
-                {
-                    CatalogItemId = id,
-                    CatalogItemTypeFieldId = upsert.FieldId,
-                    Value = upsert.Value,
-                });
-            }
-        }
+        var categories = await _db.ItemCategories.Where(c => categoryIds.Contains(c.Id)).ToListAsync();
+        ci.Categories.Clear();
+        foreach (var c in categories) ci.Categories.Add(c);
         ci.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
@@ -322,6 +286,7 @@ public class CatalogItemsController : ControllerBase
 
         var items = await _db.CatalogItems
             .Include(ci => ci.ProductTypes)
+            .Include(ci => ci.Categories)
             .Where(ci => req.ItemIds.Contains(ci.Id))
             .ToListAsync();
 
@@ -329,11 +294,13 @@ public class CatalogItemsController : ControllerBase
         if (req.ProductTypeIds is not null)
             newProductTypes = await _db.ProductTypes.Where(pt => req.ProductTypeIds.Contains(pt.Id)).ToListAsync();
 
+        ICollection<ItemCategory>? newCategories = null;
+        if (req.CategoryIds is not null)
+            newCategories = await _db.ItemCategories.Where(c => req.CategoryIds.Contains(c.Id)).ToListAsync();
+
         foreach (var ci in items)
         {
             if (req.ProgramId is not null) ci.ProgramId = req.ProgramId == 0 ? null : req.ProgramId;
-            if (req.CatalogItemTypeId is not null) ci.CatalogItemTypeId = req.CatalogItemTypeId == 0 ? null : req.CatalogItemTypeId;
-            if (req.CatalogItemSubTypeId is not null) ci.CatalogItemSubTypeId = req.CatalogItemSubTypeId == 0 ? null : req.CatalogItemSubTypeId;
             if (req.SupplierId is not null) ci.SupplierId = req.SupplierId == 0 ? null : req.SupplierId;
             if (req.VendorId is not null) ci.VendorId = req.VendorId == 0 ? null : req.VendorId;
             if (req.IsActive is not null) ci.IsActive = req.IsActive.Value;
@@ -341,6 +308,11 @@ public class CatalogItemsController : ControllerBase
             {
                 ci.ProductTypes.Clear();
                 foreach (var pt in newProductTypes) ci.ProductTypes.Add(pt);
+            }
+            if (newCategories is not null)
+            {
+                ci.Categories.Clear();
+                foreach (var c in newCategories) ci.Categories.Add(c);
             }
             ci.UpdatedAt = DateTime.UtcNow;
         }
@@ -354,8 +326,6 @@ public class CatalogItemsController : ControllerBase
     public record ImportItemSpec(
         string ItemName,
         string? ProgramName,
-        string? TypeName,
-        string? SubTypeName,
         string? SupplierName,
         string? VendorName,
         string? VendorItemNumber,
@@ -365,7 +335,7 @@ public class CatalogItemsController : ControllerBase
         bool? IsActive,
         int? SortOrder,
         IEnumerable<string>? ProductTypeNames,
-        IEnumerable<FieldValueUpsert>? FieldValues);
+        IEnumerable<string>? CategoryNames);
 
     public record ImportResultDto(string ItemName, string Action, IEnumerable<string> Warnings);
     public record ImportSummaryDto(IEnumerable<ImportResultDto> Results);
@@ -375,12 +345,11 @@ public class CatalogItemsController : ControllerBase
     public async Task<IActionResult> Import([FromBody] IEnumerable<ImportItemSpec> specs)
     {
         var allPrograms = await _db.Programs.ToListAsync();
-        var allTypes = await _db.CatalogItemTypes.Include(t => t.Fields).ToListAsync();
-        var allSubTypes = await _db.CatalogItemSubTypes.ToListAsync();
         var allSuppliers = await _db.Suppliers.ToListAsync();
         var allVendors = await _db.Vendors.ToListAsync();
         var allUoms = await _db.UnitsOfMeasure.ToListAsync();
         var allProductTypes = await _db.ProductTypes.ToListAsync();
+        var allCategories = await _db.ItemCategories.ToListAsync();
 
         var results = new List<ImportResultDto>();
 
@@ -390,18 +359,14 @@ public class CatalogItemsController : ControllerBase
             var name = spec.ItemName.Trim();
             var warnings = new List<string>();
 
-            // Resolve foreign keys by name
             int? programId = ResolveByName(allPrograms, spec.ProgramName, p => p.Name, p => p.Id, warnings, "Program");
-            int? typeId = ResolveByName(allTypes, spec.TypeName, t => t.Name, t => t.Id, warnings, "ItemType");
-            int? subTypeId = ResolveByName(allSubTypes, spec.SubTypeName, s => s.Name, s => s.Id, warnings, "SubType");
             int? supplierId = ResolveByName(allSuppliers, spec.SupplierName, s => s.Name, s => s.Id, warnings, "Supplier");
             int? vendorId = ResolveByName(allVendors, spec.VendorName, v => v.Name, v => v.Id, warnings, "Vendor");
             int? uomId = ResolveByName(allUoms, spec.PurchaseUomName, u => u.Name, u => u.Id, warnings, "PurchaseUom");
 
-            // Match existing item by ItemName + VendorId
             var existing = await _db.CatalogItems
                 .Include(ci => ci.ProductTypes)
-                .Include(ci => ci.FieldValues)
+                .Include(ci => ci.Categories)
                 .FirstOrDefaultAsync(ci => ci.ItemName == name && ci.VendorId == vendorId);
 
             string action;
@@ -411,8 +376,6 @@ public class CatalogItemsController : ControllerBase
                 {
                     ItemName = name,
                     ProgramId = programId,
-                    CatalogItemTypeId = typeId,
-                    CatalogItemSubTypeId = subTypeId,
                     SupplierId = supplierId,
                     VendorId = vendorId,
                     VendorItemNumber = spec.VendorItemNumber?.Trim(),
@@ -435,10 +398,14 @@ public class CatalogItemsController : ControllerBase
                     }
                 }
 
-                if (spec.FieldValues is not null)
+                if (spec.CategoryNames is not null)
                 {
-                    foreach (var fv in spec.FieldValues)
-                        ci.FieldValues.Add(new CatalogItemFieldValue { CatalogItemTypeFieldId = fv.FieldId, Value = fv.Value });
+                    foreach (var catName in spec.CategoryNames)
+                    {
+                        var cat = allCategories.FirstOrDefault(c => c.Name.Equals(catName, StringComparison.OrdinalIgnoreCase));
+                        if (cat is not null) ci.Categories.Add(cat);
+                        else warnings.Add($"Category '{catName}' not found.");
+                    }
                 }
 
                 _db.CatalogItems.Add(ci);
@@ -447,8 +414,6 @@ public class CatalogItemsController : ControllerBase
             else
             {
                 if (programId is not null) existing.ProgramId = programId;
-                if (typeId is not null) existing.CatalogItemTypeId = typeId;
-                if (subTypeId is not null) existing.CatalogItemSubTypeId = subTypeId;
                 if (supplierId is not null) existing.SupplierId = supplierId;
                 if (spec.VendorItemNumber is not null) existing.VendorItemNumber = spec.VendorItemNumber.Trim();
                 if (spec.PurchaseUomDescription is not null) existing.PurchaseUomDescription = spec.PurchaseUomDescription.Trim();
@@ -469,13 +434,14 @@ public class CatalogItemsController : ControllerBase
                     }
                 }
 
-                if (spec.FieldValues is not null)
+                if (spec.CategoryNames is not null)
                 {
-                    foreach (var fv in spec.FieldValues)
+                    existing.Categories.Clear();
+                    foreach (var catName in spec.CategoryNames)
                     {
-                        var ev = existing.FieldValues.FirstOrDefault(v => v.CatalogItemTypeFieldId == fv.FieldId);
-                        if (ev is not null) ev.Value = fv.Value;
-                        else existing.FieldValues.Add(new CatalogItemFieldValue { CatalogItemTypeFieldId = fv.FieldId, Value = fv.Value });
+                        var cat = allCategories.FirstOrDefault(c => c.Name.Equals(catName, StringComparison.OrdinalIgnoreCase));
+                        if (cat is not null) existing.Categories.Add(cat);
+                        else warnings.Add($"Category '{catName}' not found.");
                     }
                 }
 
@@ -506,7 +472,7 @@ public class CatalogItemsController : ControllerBase
     public async Task<IActionResult> Export(
         [FromQuery] string? search,
         [FromQuery] int? programId,
-        [FromQuery] int? typeId,
+        [FromQuery] int? categoryId,
         [FromQuery] int? supplierId,
         [FromQuery] int? vendorId,
         [FromQuery] bool? isActive)
@@ -519,8 +485,8 @@ public class CatalogItemsController : ControllerBase
             query = query.Where(ci => ci.IsActive == isActive.Value);
         if (programId.HasValue)
             query = query.Where(ci => ci.ProgramId == programId.Value);
-        if (typeId.HasValue)
-            query = query.Where(ci => ci.CatalogItemTypeId == typeId.Value);
+        if (categoryId.HasValue)
+            query = query.Where(ci => ci.Categories.Any(c => c.Id == categoryId.Value));
         if (supplierId.HasValue)
             query = query.Where(ci => ci.SupplierId == supplierId.Value);
         if (vendorId.HasValue)
@@ -529,14 +495,14 @@ public class CatalogItemsController : ControllerBase
         var items = await query.OrderBy(ci => ci.ItemName).ToListAsync();
 
         var sb = new StringBuilder();
-        sb.AppendLine("ItemName,ItemType,ItemSubType,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,UomType,Program,IsActive,SortOrder,ProductTypes");
+        sb.AppendLine("ItemName,Categories,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,UomType,Program,IsActive,SortOrder,ProductTypes");
         foreach (var ci in items)
         {
+            var categoryNames = string.Join("|", ci.Categories.Select(c => c.Name));
             var productTypeNames = string.Join("|", ci.ProductTypes.Select(pt => pt.Name));
             sb.AppendLine(string.Join(",",
                 CsvEscape(ci.ItemName),
-                CsvEscape(ci.CatalogItemType?.Name),
-                CsvEscape(ci.CatalogItemSubType?.Name),
+                CsvEscape(categoryNames),
                 CsvEscape(ci.Supplier?.Name),
                 CsvEscape(ci.Vendor?.Name),
                 CsvEscape(ci.VendorItemNumber),

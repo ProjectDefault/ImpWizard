@@ -29,7 +29,7 @@ import ImportTemplatesPage from '@/pages/admin/ImportTemplatesPage'
 import FormImpactReviewPage from '@/pages/admin/FormImpactReviewPage'
 import UsersPage from '@/pages/admin/UsersPage'
 import AuditLogPage from '@/pages/admin/AuditLogPage'
-import CatalogItemTypesPage from '@/pages/admin/CatalogItemTypesPage'
+import ItemCategoriesPage from '@/pages/admin/ItemCategoriesPage'
 import ProjectDetailPage from '@/pages/admin/ProjectDetailPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 
@@ -90,7 +90,7 @@ export default function App() {
               <Route path="settings/forms/:formId/edit" element={<FormEditorPage />} />
               <Route path="settings/import-templates" element={<ImportTemplatesPage />} />
               <Route path="settings/form-change-review" element={<FormImpactReviewPage />} />
-              <Route path="settings/catalog-item-types" element={<CatalogItemTypesPage />} />
+              <Route path="catalog/ingredient-categories" element={<ItemCategoriesPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="audit" element={<AuditLogPage />} />
               <Route path="profile" element={<ProfilePage />} />
