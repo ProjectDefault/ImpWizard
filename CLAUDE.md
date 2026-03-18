@@ -2,21 +2,61 @@
 
 ## Deployment — Commit, Push, and Rebuild Docker After Every Session
 
-After completing any meaningful change, always commit, push to GitHub, and rebuild the Docker containers:
+### Step 1 — Pre-flight: verify the backend compiles
+
+Before building Docker, always confirm the API project compiles locally. This catches missing `using` directives, type errors, and broken references before they get buried in Docker cache:
 
 ```bash
 cd "C:\Users\User\Google Drive\EkosWizard"
+dotnet build src/EkosWizard.Api/EkosWizard.Api.csproj
+```
+
+Fix any errors before proceeding. Do not skip this step — Docker's layer cache can silently reuse an old successful build even when the new source has a compile error, leaving a stale binary running in production.
+
+### Step 2 — Commit and push
+
+```bash
 git add .
 git commit -m "Brief description of what changed"
 git push
+```
+
+### Step 3 — Rebuild Docker
+
+**Frontend only changed:**
+```bash
 docker compose up -d --build client
 ```
 
-If backend (API) code changed, rebuild both:
-
+**Backend (API) changed:**
 ```bash
-docker compose up -d --build client api
+docker compose build --no-cache api && docker compose up -d --force-recreate api
 ```
+
+**Both changed:**
+```bash
+docker compose build --no-cache api && docker compose up -d --build --force-recreate client api
+```
+
+### When to use `--no-cache`
+
+Always use `--no-cache` for the API when:
+- A **new `.cs` file** was added (new controller, service, entity, etc.)
+- A **new NuGet package** was added to the `.csproj`
+- The build previously failed and you're retrying
+- EF Core appears to be ignoring a new entity property (missing from SQL SELECT logs)
+
+Without `--no-cache`, Docker may reuse a cached compile layer and silently run outdated code.
+
+### Diagnosing a stale API build
+
+If a feature is saved to the DB but reads always return the default value, check the EF Core SQL logs:
+```bash
+docker logs ekoswizard-api-1 --tail 50
+```
+If a property you just added is **missing from the SELECT list** in the SQL output, the running binary is stale. Rebuild with `--no-cache`.
+
+---
 
 - Commit after every feature, fix, or significant edit — don't batch up days of work
 - Use a clear commit message describing what changed (e.g. "Add CIS program filtering to AuditController", "Fix timezone dropdown clipping")
@@ -113,3 +153,5 @@ docker compose up -d --build client api
 - [ ] Is any new background work using `IServiceScopeFactory`?
 - [ ] Does any new customer-facing feature expose data from other customers?
 - [ ] Are error messages generic enough not to leak internal state?
+- [ ] Do all new `.cs` files have the correct `using` directives? (`dotnet build` must pass cleanly)
+- [ ] If a new entity property was added, did EF Core pick it up? (check SQL logs after rebuild)
