@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -96,6 +96,8 @@ export default function CatalogPage() {
   // Inline Vendor quick-create
   const [vendorDialogOpen, setVendorDialogOpen] = useState(false)
   const [newVendorName, setNewVendorName] = useState('')
+
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   // --- Queries ---
   const filters: CatalogFilters = {
@@ -364,12 +366,10 @@ export default function CatalogPage() {
           <p className="text-sm text-muted-foreground">Manage the product catalog</p>
         </div>
         <div className="flex gap-2">
-          <label>
-            <Button variant="outline" size="sm" asChild>
-              <span><Upload className="h-4 w-4 mr-1" /> Import CSV</span>
-            </Button>
-            <input type="file" accept=".csv" className="hidden" onChange={handleImportFile} />
-          </label>
+          <Button variant="outline" size="sm" onClick={() => importInputRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-1" /> Import CSV
+          </Button>
+          <input ref={importInputRef} type="file" accept=".csv" className="hidden" onChange={handleImportFile} />
           <a href={exportCatalogUrl({ search: search || undefined, programId: programFilter ?? undefined, categoryId: categoryFilter ?? undefined, supplierId: supplierFilter ?? undefined, vendorId: vendorFilter ?? undefined, isActive: showInactive ? undefined : true })} download="catalog.csv">
             <Button variant="outline" size="sm"><Download className="h-4 w-4 mr-1" /> Export CSV</Button>
           </a>
