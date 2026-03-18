@@ -571,7 +571,13 @@ export default function CatalogPage() {
             <div className="space-y-1">
               <Label>Program</Label>
               <Select value={form.programId?.toString() ?? 'none'} onValueChange={v => setForm(f => ({ ...f, programId: v === 'none' ? null : Number(v) }))}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue>
+                    {form.programId != null
+                      ? (programs?.find(p => p.id === form.programId)?.name ?? `#${form.programId}`)
+                      : <span className="text-muted-foreground">None</span>}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   {programs?.filter(p => p.isActive).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
@@ -588,7 +594,13 @@ export default function CatalogPage() {
                   </button>
                 </div>
                 <Select value={form.supplierId?.toString() ?? 'none'} onValueChange={v => setForm(f => ({ ...f, supplierId: v === 'none' ? null : Number(v) }))}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue>
+                      {form.supplierId != null
+                        ? (suppliers?.find(s => s.id === form.supplierId)?.name ?? `#${form.supplierId}`)
+                        : <span className="text-muted-foreground">None</span>}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
                     {suppliers?.filter(s => s.isActive).map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
@@ -603,7 +615,13 @@ export default function CatalogPage() {
                   </button>
                 </div>
                 <Select value={form.vendorId?.toString() ?? 'none'} onValueChange={v => setForm(f => ({ ...f, vendorId: v === 'none' ? null : Number(v) }))}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue>
+                      {form.vendorId != null
+                        ? (vendors?.find(v => v.id === form.vendorId)?.name ?? `#${form.vendorId}`)
+                        : <span className="text-muted-foreground">None</span>}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
                     {vendors?.filter(v => v.isActive).map(v => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}
@@ -631,7 +649,13 @@ export default function CatalogPage() {
             <div className="space-y-1">
               <Label>Purchase UOM</Label>
               <Select value={form.purchaseUomId?.toString() ?? 'none'} onValueChange={v => setForm(f => ({ ...f, purchaseUomId: v === 'none' ? null : Number(v) }))}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue>
+                    {form.purchaseUomId != null
+                      ? (uoms?.find(u => u.id === form.purchaseUomId)?.name ?? `#${form.purchaseUomId}`)
+                      : <span className="text-muted-foreground">None</span>}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   {uoms?.filter(u => u.isActive).map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.abbreviation}) — {u.unitCategory}</SelectItem>)}

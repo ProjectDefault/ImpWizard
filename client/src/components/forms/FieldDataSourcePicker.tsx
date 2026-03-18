@@ -91,7 +91,11 @@ export function FieldDataSourcePicker({
             disabled={disabled}
           >
             <SelectTrigger className="h-8 text-sm">
-              <SelectValue placeholder="Select a dataset..." />
+              <SelectValue>
+                {dataSourceId != null
+                  ? (datasets.find(ds => ds.id === dataSourceId)?.name ?? `#${dataSourceId}`)
+                  : <span className="text-muted-foreground">Select a dataset...</span>}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {datasets.map(ds => (
@@ -144,7 +148,11 @@ export function FieldDataSourcePicker({
               disabled={disabled}
             >
               <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select a form..." />
+                <SelectValue>
+                  {dataSourceFormId != null
+                    ? (allForms.find(f => f.id === dataSourceFormId)?.name ?? `#${dataSourceFormId}`)
+                    : <span className="text-muted-foreground">Select a form...</span>}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {allForms.map(f => (
@@ -163,7 +171,11 @@ export function FieldDataSourcePicker({
                 disabled={disabled || sourceFormFields.length === 0}
               >
                 <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder={sourceFormFields.length === 0 ? 'No fields available' : 'Select a field...'} />
+                  <SelectValue>
+                    {dataSourceFieldId != null
+                      ? (sourceFormFields.find(f => f.id === dataSourceFieldId)?.label ?? `#${dataSourceFieldId}`)
+                      : <span className="text-muted-foreground">{sourceFormFields.length === 0 ? 'No fields available' : 'Select a field...'}</span>}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {sourceFormFields.map(f => (

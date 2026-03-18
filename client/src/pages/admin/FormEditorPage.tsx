@@ -327,7 +327,11 @@ function FieldConfigPanel({
             onValueChange={v => { setPreFillFormId(v === 'none' ? null : Number(v)); setPreFillFieldId(null) }}
           >
             <SelectTrigger className="h-7 text-sm">
-              <SelectValue placeholder="No pre-fill" />
+              <SelectValue>
+                {preFillFormId != null
+                  ? (otherForms.find(f => f.id === preFillFormId)?.name ?? `#${preFillFormId}`)
+                  : <span className="text-muted-foreground">No pre-fill</span>}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No pre-fill</SelectItem>
@@ -344,7 +348,11 @@ function FieldConfigPanel({
               disabled={!preFillSourceForm}
             >
               <SelectTrigger className="h-7 text-sm">
-                <SelectValue placeholder="Select source field..." />
+                <SelectValue>
+                  {preFillFieldId != null
+                    ? (preFillSourceForm?.fields.find(f => f.id === preFillFieldId)?.label ?? `#${preFillFieldId}`)
+                    : <span className="text-muted-foreground">Select source field...</span>}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {(preFillSourceForm?.fields.filter(f => !f.isArchived) ?? []).map(f => (
@@ -370,7 +378,11 @@ function FieldConfigPanel({
           onValueChange={v => setLockedUntilFormId(v === 'none' ? null : Number(v))}
         >
           <SelectTrigger className="h-7 text-sm">
-            <SelectValue placeholder="No dependency" />
+            <SelectValue>
+              {lockedUntilFormId != null
+                ? (otherForms.find(f => f.id === lockedUntilFormId)?.name ?? `#${lockedUntilFormId}`)
+                : <span className="text-muted-foreground">No dependency</span>}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No dependency</SelectItem>

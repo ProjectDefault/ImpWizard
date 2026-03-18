@@ -470,7 +470,11 @@ function AddStageButton({
                 onValueChange={v => setForm(f => ({ ...f, stageCategoryId: v ? Number(v) : null }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue>
+                    {form.stageCategoryId != null
+                      ? (stageCategories.find(c => c.id === form.stageCategoryId)?.name ?? `#${form.stageCategoryId}`)
+                      : <span className="text-muted-foreground">Select category</span>}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {stageCategories.filter(c => c.isActive).map(c => (
@@ -639,7 +643,11 @@ function StageCard({
                 onValueChange={v => setEditForm(f => ({ ...f, stageCategoryId: v ? Number(v) : null }))}
               >
                 <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue>
+                    {editForm.stageCategoryId != null
+                      ? (stageCategories.find(c => c.id === editForm.stageCategoryId)?.name ?? `#${editForm.stageCategoryId}`)
+                      : <span className="text-muted-foreground">Select category</span>}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {stageCategories.filter(c => c.isActive).map(c => (
@@ -1059,7 +1067,11 @@ function AddItemSheet({
                 onValueChange={v => setForm(f => ({ ...f, formId: v ? Number(v) : undefined }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select form" />
+                  <SelectValue>
+                    {form.formId != null
+                      ? (forms.find(f => f.id === form.formId)?.name ?? `#${form.formId}`)
+                      : <span className="text-muted-foreground">Select form</span>}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {forms.map(f => (
@@ -1252,7 +1264,11 @@ function EditItemSheet({
                 onValueChange={v => setForm(f => ({ ...f, formId: v ? Number(v) : undefined }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select form" />
+                  <SelectValue>
+                    {form.formId != null
+                      ? (forms.find(f => f.id === form.formId)?.name ?? `#${form.formId}`)
+                      : <span className="text-muted-foreground">Select form</span>}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {forms.map(f => (
