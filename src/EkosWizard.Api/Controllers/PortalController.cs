@@ -737,7 +737,7 @@ public class PortalController : ControllerBase
         {
             "ReferenceData" when dataSourceId.HasValue =>
                 await _db.ReferenceDataItems
-                    .Where(i => i.DataSetId == dataSourceId.Value && i.IsActive)
+                    .Where(i => i.DataSetId == dataSourceId.Value && i.IsActive && i.DataSet.IsActive)
                     .OrderBy(i => i.SortOrder).ThenBy(i => i.Label)
                     .Select(i => i.Label)
                     .ToListAsync(),

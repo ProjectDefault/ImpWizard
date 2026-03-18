@@ -28,15 +28,15 @@ public class ReferenceDataController : ControllerBase
 
     public record ProgramRefDto(int Id, string Name, string? Color);
 
-    public record DataSetListDto(int Id, string Name, string? Description, bool IsAdminOnly, int SortOrder, int ItemCount, CategoryRefDto? Category, IEnumerable<ProgramRefDto> Programs);
+    public record DataSetListDto(int Id, string Name, string? Description, bool IsAdminOnly, bool IsActive, int SortOrder, int ItemCount, CategoryRefDto? Category, IEnumerable<ProgramRefDto> Programs);
 
     public record DataItemDto(int Id, string Label, int SortOrder, bool IsActive, IEnumerable<ProductTypeRefDto> ProductTypes);
 
-    public record DataSetDetailDto(int Id, string Name, string? Description, bool IsAdminOnly, int SortOrder, CategoryRefDto? Category, IEnumerable<ProgramRefDto> Programs, IEnumerable<ProductTypeRefDto> ProductTypes, IEnumerable<DataItemDto> Items);
+    public record DataSetDetailDto(int Id, string Name, string? Description, bool IsAdminOnly, bool IsActive, int SortOrder, CategoryRefDto? Category, IEnumerable<ProgramRefDto> Programs, IEnumerable<ProductTypeRefDto> ProductTypes, IEnumerable<DataItemDto> Items);
 
     public record CreateDataSetRequest(string Name, string? Description, bool IsAdminOnly, int SortOrder, int[]? ProgramIds);
 
-    public record UpdateDataSetRequest(string? Name, string? Description, bool? IsAdminOnly, int? SortOrder);
+    public record UpdateDataSetRequest(string? Name, string? Description, bool? IsAdminOnly, bool? IsActive, int? SortOrder);
 
     public record SetCategoryRequest(int? CategoryId);
 
@@ -72,7 +72,7 @@ public class ReferenceDataController : ControllerBase
         new(i.Id, i.Label, i.SortOrder, i.IsActive, ToProductTypeRefs(i.ProductTypes));
 
     private static DataSetDetailDto ToDetailDto(ReferenceDataSet ds) => new(
-        ds.Id, ds.Name, ds.Description, ds.IsAdminOnly, ds.SortOrder,
+        ds.Id, ds.Name, ds.Description, ds.IsAdminOnly, ds.IsActive, ds.SortOrder,
         ToCategoryRef(ds.Category),
         ToProgramRefs(ds.Programs),
         ToProductTypeRefs(ds.ProductTypes),
@@ -91,7 +91,7 @@ public class ReferenceDataController : ControllerBase
             .ToListAsync();
 
         return Ok(sets.Select(ds => new DataSetListDto(
-            ds.Id, ds.Name, ds.Description, ds.IsAdminOnly, ds.SortOrder, ds.Items.Count, ToCategoryRef(ds.Category), ToProgramRefs(ds.Programs))));
+            ds.Id, ds.Name, ds.Description, ds.IsAdminOnly, ds.IsActive, ds.SortOrder, ds.Items.Count, ToCategoryRef(ds.Category), ToProgramRefs(ds.Programs))));
     }
 
     [HttpGet("{id:int}")]
@@ -159,6 +159,7 @@ public class ReferenceDataController : ControllerBase
         if (req.Name is not null) ds.Name = req.Name.Trim();
         if (req.Description is not null) ds.Description = req.Description.Trim();
         if (req.IsAdminOnly is not null) ds.IsAdminOnly = req.IsAdminOnly.Value;
+        if (req.IsActive is not null) ds.IsActive = req.IsActive.Value;
         if (req.SortOrder is not null) ds.SortOrder = req.SortOrder.Value;
         ds.UpdatedAt = DateTime.UtcNow;
 

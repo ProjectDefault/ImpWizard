@@ -29,6 +29,7 @@ export interface DataSetListDto {
   name: string
   description: string | null
   isAdminOnly: boolean
+  isActive: boolean
   sortOrder: number
   itemCount: number
   category: CategoryRefDto | null
@@ -40,6 +41,7 @@ export interface DataSetDetailDto {
   name: string
   description: string | null
   isAdminOnly: boolean
+  isActive: boolean
   sortOrder: number
   category: CategoryRefDto | null
   programs: ProgramRefDto[]
@@ -59,6 +61,7 @@ export interface UpdateDataSetPayload {
   name?: string
   description?: string
   isAdminOnly?: boolean
+  isActive?: boolean
   sortOrder?: number
 }
 

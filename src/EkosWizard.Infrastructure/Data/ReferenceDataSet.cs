@@ -9,6 +9,9 @@ public class ReferenceDataSet
     /// <summary>If true, only Admins can add/edit/remove items. CIS users are read-only.</summary>
     public bool IsAdminOnly { get; set; } = false;
 
+    /// <summary>If false, this dataset is hidden from portal dropdowns.</summary>
+    public bool IsActive { get; set; } = true;
+
     public int SortOrder { get; set; }
 
     public DateTime CreatedAt { get; set; }

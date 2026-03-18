@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Pencil, Trash2, Check, X, ShieldAlert, GripVertical, ArrowUpAZ, ArrowDownAZ, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  getDataSets, getDataSet, createDataSet, updateDataSet,
+  getDataSets, getDataSet, createDataSet, updateDataSet, deleteDataSet,
   addItem, updateItem, deleteItem, reorderItems, setDataSetCategory,
   setDataSetProductTypes, setItemProductTypes, importDataSets, setDataSetPrograms,
 } from '@/api/referenceData'
@@ -556,9 +556,24 @@ export default function ReferenceDataPage() {
     createDataSetMutation.mutate(sheetForm)
   }
 
+  const deleteDataSetMutation = useMutation({
+    mutationFn: deleteDataSet,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reference-data'] })
+      setSelectedId(null)
+      toast.success('Dataset deleted')
+    },
+    onError: () => toast.error('Failed to delete dataset'),
+  })
+
   const handleAdminOnlyToggle = (checked: boolean) => {
     if (!dataset) return
     updateDataSetMutation.mutate({ id: dataset.id, isAdminOnly: checked })
+  }
+
+  const handleIsActiveToggle = (checked: boolean) => {
+    if (!dataset) return
+    updateDataSetMutation.mutate({ id: dataset.id, isActive: checked })
   }
 
   const handleAddItem = () => {
@@ -685,7 +700,7 @@ export default function ReferenceDataPage() {
                   key={ds.id}
                   className={`p-3 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${
                     selectedId === ds.id ? 'bg-muted' : ''
-                  }`}
+                  } ${!ds.isActive ? 'opacity-50' : ''}`}
                   onClick={() => {
                     setSelectedId(ds.id)
                     setAddingItem(false)
@@ -707,6 +722,11 @@ export default function ReferenceDataPage() {
                     <div className="flex items-center gap-1 shrink-0">
                       {ds.isAdminOnly && (
                         <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                      {!ds.isActive && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
+                          Inactive
+                        </Badge>
                       )}
                       <Badge variant="secondary" className="text-xs px-1.5 py-0">
                         {ds.itemCount}
@@ -783,18 +803,38 @@ export default function ReferenceDataPage() {
                             Admin Only
                           </Badge>
                         )}
+                        {!dataset.isActive && (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Inactive
+                          </Badge>
+                        )}
                         {isAdmin && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => {
-                              setHeaderForm({ name: dataset.name, description: dataset.description ?? '' })
-                              setEditingHeader(true)
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                setHeaderForm({ name: dataset.name, description: dataset.description ?? '' })
+                                setEditingHeader(true)
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive ml-auto"
+                              disabled={deleteDataSetMutation.isPending}
+                              onClick={() => {
+                                if (confirm(`Delete dataset "${dataset.name}"? This will permanently remove it and all its items.`)) {
+                                  deleteDataSetMutation.mutate(dataset.id)
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
                         )}
                       </div>
                       {dataset.description
@@ -879,6 +919,21 @@ export default function ReferenceDataPage() {
                       />
                       <Label htmlFor="admin-only-toggle" className="text-sm cursor-pointer">
                         Admin Only — only admins can edit items in this dataset
+                      </Label>
+                    </div>
+                  )}
+
+                  {/* Active Toggle */}
+                  {isAdmin && (
+                    <div className="flex items-center gap-3 py-2 border-b">
+                      <Switch
+                        id="active-toggle"
+                        checked={dataset.isActive}
+                        onCheckedChange={handleIsActiveToggle}
+                        disabled={updateDataSetMutation.isPending}
+                      />
+                      <Label htmlFor="active-toggle" className="text-sm cursor-pointer">
+                        Active — disabled datasets are hidden from portal form dropdowns
                       </Label>
                     </div>
                   )}

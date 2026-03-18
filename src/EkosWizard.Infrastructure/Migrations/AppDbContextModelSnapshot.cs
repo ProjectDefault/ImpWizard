@@ -639,6 +639,11 @@ namespace ImpWizard.Infrastructure.Migrations
                     b.Property<bool>("IsAdminOnly")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
