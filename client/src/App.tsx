@@ -32,6 +32,7 @@ import AuditLogPage from '@/pages/admin/AuditLogPage'
 import ItemCategoriesPage from '@/pages/admin/ItemCategoriesPage'
 import ProjectDetailPage from '@/pages/admin/ProjectDetailPage'
 import BulkSubmissionReviewPage from '@/pages/admin/BulkSubmissionReviewPage'
+import ProductManagementPage from '@/pages/admin/ProductManagementPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 
 import SuperCustomerLayout from '@/components/layout/SuperCustomerLayout'
@@ -81,6 +82,7 @@ export default function App() {
               <Route path="data/units-of-measure" element={<UnitsOfMeasurePage />} />
               <Route path="journeys" element={<JourneysPage />} />
               <Route path="journeys/stage-categories" element={<JourneyStagesCategoriesPage />} />
+              <Route path="journeys/product-management" element={<ProductManagementPage />} />
               <Route path="catalog/meetings" element={<MeetingCatalogPage />} />
               <Route path="catalog/resources" element={<ResourceCatalogPage />} />
               <Route path="catalog/meeting-types" element={<MeetingTypesPage />} />

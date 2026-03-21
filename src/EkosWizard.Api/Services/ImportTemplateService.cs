@@ -97,6 +97,7 @@ public class ImportTemplateService
             "ProductType" => GetProductTypeColumns(),
             "UnitOfMeasure" => GetUnitOfMeasureColumns(),
             "Category" => GetCategoryColumns(),
+            "ProductList" => GetProductListColumns(),
             _ => []
         };
 
@@ -150,5 +151,18 @@ public class ImportTemplateService
     [
         new() { Header = "Name", DataType = "Text", IsRequired = true },
         new() { Header = "Description", DataType = "Textarea" },
+    ];
+
+    /// <summary>
+    /// Default columns for a ProductList-sourced import template.
+    /// Each column maps to a ProducerProduct field via ProductListField.
+    /// Admins can add/remove columns after creation.
+    /// </summary>
+    private static List<ImportTemplateColumn> GetProductListColumns() =>
+    [
+        new() { Header = "Product Name", DataType = "Text", IsRequired = true, ProductListField = "Name" },
+        new() { Header = "Style", DataType = "Text", ProductListField = "Style" },
+        new() { Header = "Untappd URL", DataType = "Text", ProductListField = "SourceUrl" },
+        new() { Header = "Last Activity Date", DataType = "Date", ProductListField = "LastActivityDate" },
     ];
 }

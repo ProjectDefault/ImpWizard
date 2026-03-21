@@ -767,11 +767,12 @@ public class PortalController : ControllerBase
 
     // ── Cross-form data endpoints ──────────────────────────────────────────────
 
-    // GET /api/portal/dropdown-options?dataSourceType=ReferenceData&dataSourceId=5
+    // GET /api/portal/dropdown-options?dataSourceType=ReferenceData&dataSourceId=5&projectId=10
     [HttpGet("dropdown-options")]
     public async Task<IActionResult> GetDropdownOptions(
         [FromQuery] string dataSourceType,
-        [FromQuery] int? dataSourceId)
+        [FromQuery] int? dataSourceId,
+        [FromQuery] int? projectId)
     {
         IList<string> options = dataSourceType switch
         {
@@ -841,6 +842,15 @@ public class PortalController : ControllerBase
                     .Where(c => c.IsActive)
                     .Select(c => c.ItemName)
                     .Distinct()
+                    .OrderBy(n => n)
+                    .ToListAsync(),
+
+            "ProjectProductList" when projectId.HasValue =>
+                await _db.ProducerProductLists
+                    .Where(pl => pl.ProjectId == projectId.Value && pl.Status != "Draft")
+                    .SelectMany(pl => pl.Products)
+                    .Where(p => p.IsIncluded && p.DuplicateOfId == null)
+                    .Select(p => p.Name)
                     .OrderBy(n => n)
                     .ToListAsync(),
 

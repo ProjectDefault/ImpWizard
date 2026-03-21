@@ -62,6 +62,7 @@ const topNavItems = [
 const journeyItems = [
   { to: '/admin/journeys', label: 'Journeys', icon: Map },
   { to: '/admin/journeys/stage-categories', label: 'Stage Categories', icon: Tag },
+  { to: '/admin/journeys/product-management', label: 'Product Management', icon: Package },
 ]
 
 const catalogItems = [

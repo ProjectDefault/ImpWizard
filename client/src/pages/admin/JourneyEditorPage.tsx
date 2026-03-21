@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ArrowLeft, Plus, Pencil, Trash2, Check, X,
-  ChevronUp, ChevronDown, Calendar, FileText, ClipboardList,
+  ChevronUp, ChevronDown, Calendar, FileText, ClipboardList, Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -53,6 +53,12 @@ function ItemTypeBadge({ type }: { type: string }) {
     return (
       <Badge className="text-xs gap-1 bg-green-600 hover:bg-green-600">
         <FileText className="h-3 w-3" /> Resource
+      </Badge>
+    )
+  if (type === 'ProductList')
+    return (
+      <Badge className="text-xs gap-1 bg-purple-600 hover:bg-purple-600">
+        <Package className="h-3 w-3" /> Product List
       </Badge>
     )
   return (
@@ -829,7 +835,7 @@ function AddItemSheet({
   forms: FormListDto[]
   onAdd: (payload: CreateItemPayload) => void
 }) {
-  const [itemType, setItemType] = useState<'Meeting' | 'Resource' | 'FormAssignment'>('Meeting')
+  const [itemType, setItemType] = useState<'Meeting' | 'Resource' | 'FormAssignment' | 'ProductList'>('Meeting')
   const [form, setForm] = useState<Partial<CreateItemPayload>>({ title: '', sortOrder: 0 })
 
   const { data: meetingCatalog = [] } = useQuery<MeetingCatalogEntryDto[]>({
@@ -889,6 +895,7 @@ function AddItemSheet({
                 <SelectItem value="Meeting">Meeting</SelectItem>
                 <SelectItem value="Resource">Resource</SelectItem>
                 <SelectItem value="FormAssignment">Form Assignment</SelectItem>
+                <SelectItem value="ProductList">Product List</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1079,6 +1086,14 @@ function AddItemSheet({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {itemType === 'ProductList' && (
+            <div className="rounded-md bg-purple-50 border border-purple-200 px-3 py-2 text-xs text-purple-800">
+              A Product List step will appear in the customer portal when the list is published.
+              Configure the Untappd URL and scrape the products from{' '}
+              <strong>Journey Management → Product Management</strong>.
             </div>
           )}
 

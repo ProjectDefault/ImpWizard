@@ -156,7 +156,7 @@ public class ImportTemplatesController : ControllerBase
     public async Task<IActionResult> CreateFromDataManagement(
         [FromBody] DataManagementTemplateRequest req)
     {
-        var validTypes = new[] { "ReferenceData", "ProductType", "UnitOfMeasure", "Category" };
+        var validTypes = new[] { "ReferenceData", "ProductType", "UnitOfMeasure", "Category", "ProductList" };
         if (!validTypes.Contains(req.SourceType))
             return BadRequest(new { message = "Invalid SourceType." });
 
@@ -173,13 +173,39 @@ public class ImportTemplatesController : ControllerBase
 
     [HttpGet("{id:int}/export")]
     public async Task<IActionResult> Export(int id, [FromQuery] string format = "xlsx",
-        [FromQuery] string? sheetName = null)
+        [FromQuery] string? sheetName = null, [FromQuery] int? projectId = null)
     {
         var t = await _db.ImportTemplates
             .Include(t => t.Columns.OrderBy(c => c.SortOrder))
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (t is null) return NotFound();
+
+        // ProductList templates export pre-populated rows from the project's product list
+        if (t.SourceType == "ProductList")
+        {
+            if (projectId is null)
+                return BadRequest(new { message = "projectId is required when exporting a ProductList template." });
+
+            var productList = await _db.ProducerProductLists
+                .Include(pl => pl.Products)
+                .FirstOrDefaultAsync(pl => pl.ProjectId == projectId.Value);
+
+            var products = productList?.Products ?? [];
+
+            if (format.Equals("csv", StringComparison.OrdinalIgnoreCase))
+            {
+                var csv = _exportService.ExportProductListToCsv(t, products);
+                return File(csv, "text/csv", $"{t.Name}.csv");
+            }
+            else
+            {
+                var xlsx = _exportService.ExportProductListToXlsx(t, products, sheetName ?? t.Name);
+                return File(xlsx,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    $"{t.Name}.xlsx");
+            }
+        }
 
         if (format.Equals("csv", StringComparison.OrdinalIgnoreCase))
         {

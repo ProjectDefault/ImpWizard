@@ -86,6 +86,7 @@ export function FieldDataSourcePicker({
             <SelectItem value="ItemCategory">Ingredient Categories</SelectItem>
             <SelectItem value="ItemCatalog">Item Catalog</SelectItem>
             <SelectItem value="ProjectSubmission">Project Submission</SelectItem>
+            <SelectItem value="ProjectProductList">Project Product List</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -220,6 +221,13 @@ export function FieldDataSourcePicker({
             Options are populated from submitted answers on this project. If no submissions exist yet, the dropdown will be empty.
           </p>
         </>
+      )}
+
+      {dataSourceType === 'ProjectProductList' && (
+        <p className="text-xs text-muted-foreground">
+          Dropdown options are populated from this project's confirmed product list (included products only).
+          The list must be published before options will appear.
+        </p>
       )}
     </div>
   )

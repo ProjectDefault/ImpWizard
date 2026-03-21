@@ -47,6 +47,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<BulkSubmission> BulkSubmissions => Set<BulkSubmission>();
     public DbSet<BulkSubmissionRow> BulkSubmissionRows => Set<BulkSubmissionRow>();
     public DbSet<BulkSubmissionCell> BulkSubmissionCells => Set<BulkSubmissionCell>();
+    public DbSet<ProducerProductList> ProducerProductLists => Set<ProducerProductList>();
+    public DbSet<ProducerProduct> ProducerProducts => Set<ProducerProduct>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -527,6 +529,29 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
              .WithMany()
              .HasForeignKey(c => c.FormFieldId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Producer Product Lists ────────────────────────────────────────────────
+
+        builder.Entity<ProducerProductList>(e =>
+        {
+            e.HasOne(pl => pl.Project)
+             .WithMany()
+             .HasForeignKey(pl => pl.ProjectId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(pl => pl.Products)
+             .WithOne(p => p.List)
+             .HasForeignKey(p => p.ProducerProductListId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ProducerProduct>(e =>
+        {
+            e.HasOne(p => p.DuplicateOf)
+             .WithMany()
+             .HasForeignKey(p => p.DuplicateOfId)
+             .OnDelete(DeleteBehavior.ClientSetNull);
         });
     }
 }

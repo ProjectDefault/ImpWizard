@@ -13,6 +13,7 @@ import PortalFormsTab from './tabs/PortalFormsTab'
 import PortalPostGoLiveTab from './tabs/PortalPostGoLiveTab'
 import PortalTeamTab from './tabs/PortalTeamTab'
 import PortalHistoryTab from './tabs/PortalHistoryTab'
+import PortalProductListTab from './tabs/PortalProductListTab'
 import { useAuthStore } from '@/store/authStore'
 
 export default function PortalProjectPage() {
@@ -87,6 +88,7 @@ export default function PortalProjectPage() {
         <TabsList className="mb-4">
           <TabsTrigger value="trainings">Trainings</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
+          <TabsTrigger value="products">Product List</TabsTrigger>
           <TabsTrigger value="forms">Data Submissions</TabsTrigger>
           <TabsTrigger value="postgolive">Post Go-Live</TabsTrigger>
           {canManageTeam && <TabsTrigger value="team">Team</TabsTrigger>}
@@ -95,6 +97,9 @@ export default function PortalProjectPage() {
 
         <TabsContent value="trainings">
           <PortalTrainingsTab projectId={id} />
+        </TabsContent>
+        <TabsContent value="products">
+          <PortalProductListTab projectId={id} />
         </TabsContent>
         <TabsContent value="resources">
           <PortalResourcesTab projectId={id} />

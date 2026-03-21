@@ -10,6 +10,7 @@ export interface ImportTemplateColumnDto {
   isRequired: boolean
   sortOrder: number
   formFieldId: number | null
+  productListField: string | null
   maxLength: number | null
   allowedValues: string | null
 }

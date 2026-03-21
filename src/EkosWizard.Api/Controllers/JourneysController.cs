@@ -287,8 +287,8 @@ public class JourneysController : ControllerBase
         var stage = await _db.JourneyStages.FirstOrDefaultAsync(s => s.Id == stageId && s.JourneyId == id);
         if (stage is null) return NotFound(new { message = "Stage not found." });
 
-        if (!new[] { "Meeting", "Resource", "FormAssignment" }.Contains(req.ItemType))
-            return BadRequest(new { message = "ItemType must be Meeting, Resource, or FormAssignment." });
+        if (!new[] { "Meeting", "Resource", "FormAssignment", "ProductList" }.Contains(req.ItemType))
+            return BadRequest(new { message = "ItemType must be Meeting, Resource, FormAssignment, or ProductList." });
 
         if (string.IsNullOrWhiteSpace(req.Title))
             return BadRequest(new { message = "Title is required." });

@@ -26,6 +26,7 @@ const DATA_MANAGEMENT_SOURCES: { value: string; label: string }[] = [
   { value: 'ProductType', label: 'Product Types' },
   { value: 'UnitOfMeasure', label: 'Units of Measure' },
   { value: 'Category', label: 'Categories' },
+  { value: 'ProductList', label: 'Product List' },
 ]
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -34,17 +35,18 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   ProductType: 'Product Types',
   UnitOfMeasure: 'Units of Measure',
   Category: 'Categories',
+  ProductList: 'Product List',
   Manual: 'Manual',
 }
 
 function SourceBadge({ sourceType }: { sourceType: ImportTemplateSourceType }) {
   const label = SOURCE_TYPE_LABELS[sourceType] ?? sourceType
-  const isForm = sourceType === 'Form'
+  const colorClass =
+    sourceType === 'Form' ? 'border-blue-300 text-blue-700' :
+    sourceType === 'ProductList' ? 'border-purple-300 text-purple-700' :
+    'border-green-300 text-green-700'
   return (
-    <Badge
-      variant="outline"
-      className={`text-xs px-1.5 py-0 ${isForm ? 'border-blue-300 text-blue-700' : 'border-green-300 text-green-700'}`}
-    >
+    <Badge variant="outline" className={`text-xs px-1.5 py-0 ${colorClass}`}>
       {label}
     </Badge>
   )
@@ -264,6 +266,11 @@ export default function ImportTemplatesPage() {
                           )}
                           {col.maxLength && (
                             <span className="text-xs text-muted-foreground">max {col.maxLength}</span>
+                          )}
+                          {col.productListField && (
+                            <Badge variant="outline" className="text-xs px-1.5 py-0 border-purple-300 text-purple-700">
+                              {col.productListField}
+                            </Badge>
                           )}
                           <Badge variant="outline" className="text-xs px-1.5 py-0">{col.dataType}</Badge>
                         </div>
