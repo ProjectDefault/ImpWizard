@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -14,13 +15,13 @@ import {
 } from '@/components/ui/dialog'
 import {
   Package, RefreshCw, Send, ExternalLink, AlertTriangle, Copy,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getProductListByProject, createProductList, updateProductList,
-  scrapeAndSave, toggleProduct, publishProductList,
-  type ProductListDetailDto, type ProductDto,
+  scrapeAndSave, toggleProduct, publishProductList, scrapePreview,
+  type ProductListDetailDto, type ProductDto, type ScrapedProductDto,
 } from '@/api/productList'
 import { useQuery as useProjectsQuery } from '@tanstack/react-query'
 import { getProjects } from '@/api/projects'
@@ -209,6 +210,142 @@ function SetupDialog({
   )
 }
 
+// ── Scraper preview ───────────────────────────────────────────────────────────
+
+function ScraperPreview() {
+  const [url, setUrl] = useState('')
+  const [days, setDays] = useState('730')
+  const [results, setResults] = useState<ScrapedProductDto[] | null>(null)
+  const [showDuplicates, setShowDuplicates] = useState(false)
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => scrapePreview(url.trim(), Number(days) || 730),
+    onSuccess: data => { setResults(data); setShowDuplicates(false) },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Scrape failed'),
+  })
+
+  const main = results?.filter(r => !r.isDuplicate) ?? []
+  const dupes = results?.filter(r => r.isDuplicate) ?? []
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md border p-4 space-y-4">
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="flex-1 min-w-64 space-y-1.5">
+            <Label>Untappd Brewery URL</Label>
+            <Input
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://untappd.com/BreweryName"
+              onKeyDown={e => { if (e.key === 'Enter' && url.trim()) mutate() }}
+            />
+          </div>
+          <div className="w-40 space-y-1.5">
+            <Label>Activity Window</Label>
+            <Select value={days} onValueChange={setDays}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="365">1 year</SelectItem>
+                <SelectItem value="730">2 years</SelectItem>
+                <SelectItem value="1095">3 years</SelectItem>
+                <SelectItem value="1825">5 years</SelectItem>
+                <SelectItem value="0">No filter</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            onClick={() => mutate()}
+            disabled={isPending || !url.trim()}
+          >
+            <Search className={`h-4 w-4 mr-1.5 ${isPending ? 'animate-pulse' : ''}`} />
+            {isPending ? 'Scraping...' : 'Scrape'}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Results are not saved — use this to preview a brewery's product list before attaching it to a project.
+        </p>
+      </div>
+
+      {isPending && (
+        <div className="rounded-md border p-4 space-y-2">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+        </div>
+      )}
+
+      {results && !isPending && (
+        <div className="rounded-md border">
+          <div className="px-4 py-2 bg-muted/30 border-b flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+            <span className="font-medium text-foreground">{main.length} products</span>
+            {dupes.length > 0 && (
+              <button
+                className="flex items-center gap-1 text-orange-600 hover:text-orange-800"
+                onClick={() => setShowDuplicates(v => !v)}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {dupes.length} duplicate{dupes.length !== 1 ? 's' : ''} auto-resolved
+                {showDuplicates ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+            )}
+          </div>
+
+          {main.length === 0 ? (
+            <p className="p-6 text-center text-sm text-muted-foreground">No products found.</p>
+          ) : (
+            <div>
+              {main.map((p, i) => (
+                <PreviewRow key={i} product={p} />
+              ))}
+              {showDuplicates && dupes.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5 bg-orange-50 border-t border-b text-xs font-medium text-orange-700">
+                    Auto-resolved duplicates — kept higher check-in count
+                  </div>
+                  {dupes.map((p, i) => (
+                    <PreviewRow key={`dup-${i}`} product={p} />
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PreviewRow({ product }: { product: ScrapedProductDto }) {
+  return (
+    <div className={`flex items-center gap-3 px-3 py-2 border-b last:border-b-0 ${product.isDuplicate ? 'opacity-50 bg-muted/20' : ''}`}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">{product.name}</span>
+          {product.isDuplicate && (
+            <Badge variant="outline" className="text-xs px-1 py-0 border-orange-300 text-orange-700">
+              <Copy className="h-2.5 w-2.5 mr-0.5" />
+              Duplicate of {product.duplicateOfName}
+            </Badge>
+          )}
+        </div>
+        {product.style && <p className="text-xs text-muted-foreground">{product.style}</p>}
+      </div>
+      <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+        {product.checkInCount > 0 && <span>{product.checkInCount.toLocaleString()} check-ins</span>}
+        {product.lastActivityDate && (
+          <span>{new Date(product.lastActivityDate).toLocaleDateString()}</span>
+        )}
+        {product.sourceUrl && (
+          <a href={product.sourceUrl} target="_blank" rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800">
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ProductManagementPage() {
@@ -265,6 +402,18 @@ export default function ProductManagementPage() {
           Scrape and manage producer product lists from Untappd, then publish them to the customer portal.
         </p>
       </div>
+
+      <Tabs defaultValue="projects">
+        <TabsList>
+          <TabsTrigger value="projects">Project Lists</TabsTrigger>
+          <TabsTrigger value="preview">Scraper Preview</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="preview" className="mt-4">
+          <ScraperPreview />
+        </TabsContent>
+
+        <TabsContent value="projects" className="mt-4 space-y-4">
 
       {/* Project selector */}
       <div className="flex items-center gap-3">
@@ -439,6 +588,9 @@ export default function ProductManagementPage() {
           onClose={() => setSetupOpen(false)}
         />
       )}
+
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
