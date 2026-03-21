@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Threading.Channels;
 
 namespace ImpWizard.Api.Controllers;
 
@@ -99,7 +101,7 @@ public class ProducerProductListController : ControllerBase
 
         try
         {
-            var products = await _scraper.ScrapeAsync(req.Url.Trim(), req.RollingWindowDays, ct);
+            var products = await _scraper.ScrapeAsync(req.Url.Trim(), req.RollingWindowDays, null, ct);
             var dtos = products.Select(p => new ScrapedProductDto(
                 p.Name, p.Style, p.SourceUrl, p.CheckInCount,
                 p.LastActivityDate, p.IsDuplicate, p.DuplicateOfName));
@@ -113,6 +115,65 @@ public class ProducerProductListController : ControllerBase
         {
             return StatusCode(502, new { message = $"Scrape failed: {ex.Message}" });
         }
+    }
+
+    // ── Scrape preview with SSE progress streaming ────────────────────────────
+
+    [HttpGet("scrape-stream")]
+    public async Task ScrapeStream(
+        [FromQuery] string url, [FromQuery] int rollingWindowDays = 730, CancellationToken ct = default)
+    {
+        Response.Headers["Content-Type"] = "text/event-stream";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+        Response.Headers["Connection"] = "keep-alive";
+
+        var channel = Channel.CreateUnbounded<(string type, string payload)>(
+            new UnboundedChannelOptions { SingleWriter = true });
+
+        async Task Send(string type, string payload)
+        {
+            await Response.WriteAsync($"data: {{\"type\":\"{type}\",\"payload\":{payload}}}\n\n", ct);
+            await Response.Body.FlushAsync(ct);
+        }
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            await Send("error", JsonSerializer.Serialize("URL is required."));
+            return;
+        }
+
+        var progress = new Progress<string>(msg =>
+            channel.Writer.TryWrite(("progress", JsonSerializer.Serialize(msg))));
+
+        var scrapeTask = Task.Run(async () =>
+        {
+            try
+            {
+                var products = await _scraper.ScrapeAsync(url.Trim(), rollingWindowDays, progress, ct);
+                var dtos = products.Select(p => new ScrapedProductDto(
+                    p.Name, p.Style, p.SourceUrl, p.CheckInCount,
+                    p.LastActivityDate, p.IsDuplicate, p.DuplicateOfName));
+                channel.Writer.TryWrite(("complete", JsonSerializer.Serialize(dtos)));
+            }
+            catch (OperationCanceledException)
+            {
+                channel.Writer.TryWrite(("cancelled", "null"));
+            }
+            catch (Exception ex)
+            {
+                channel.Writer.TryWrite(("error", JsonSerializer.Serialize(ex.Message)));
+            }
+            finally
+            {
+                channel.Writer.Complete();
+            }
+        }, ct);
+
+        await foreach (var (type, payload) in channel.Reader.ReadAllAsync(ct))
+            await Send(type, payload);
+
+        await scrapeTask;
     }
 
     // ── List endpoints ────────────────────────────────────────────────────────
@@ -206,7 +267,7 @@ public class ProducerProductListController : ControllerBase
 
         try
         {
-            var scraped = await _scraper.ScrapeAsync(pl.SourceUrl, pl.RollingWindowDays, ct);
+            var scraped = await _scraper.ScrapeAsync(pl.SourceUrl, pl.RollingWindowDays, null, ct);
 
             // Clear existing scraped products (keep customer-added ones)
             var toRemove = pl.Products.Where(p => !p.IsCustomerAdded).ToList();

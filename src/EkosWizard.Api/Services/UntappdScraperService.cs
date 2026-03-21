@@ -35,18 +35,22 @@ public class UntappdScraperService
     /// </summary>
     /// <param name="breweryUrl">e.g. https://untappd.com/MortalisBrewingCompany</param>
     /// <param name="rollingWindowDays">Exclude products with no activity in this many days. 0 = no filter.</param>
-    public async Task<List<ScrapedProduct>> ScrapeAsync(string breweryUrl, int rollingWindowDays, CancellationToken ct = default)
+    public async Task<List<ScrapedProduct>> ScrapeAsync(
+        string breweryUrl, int rollingWindowDays,
+        IProgress<string>? progress = null, CancellationToken ct = default)
     {
         var slug = ExtractSlug(breweryUrl);
         var beerPageBase = $"https://untappd.com/{slug}/beer";
 
         // Step 1: Collect all beers via paginated beer list
-        var allBeers = await ScrapeBeerListAsync(beerPageBase, ct);
+        var allBeers = await ScrapeBeerListAsync(beerPageBase, progress, ct);
 
         // Step 2: Scrape activity feed to get LastActivityDate per beer
-        var activityFeed = await ScrapeActivityFeedAsync(slug, rollingWindowDays, ct);
+        progress?.Report($"Found {allBeers.Count} product{(allBeers.Count == 1 ? "" : "s")} — fetching activity feed...");
+        var activityFeed = await ScrapeActivityFeedAsync(slug, rollingWindowDays, progress, ct);
 
         // Step 3: Merge activity dates into product list
+        progress?.Report("Merging activity data...");
         foreach (var beer in allBeers)
         {
             if (beer.SourceUrl != null && activityFeed.TryGetValue(NormalizeUrl(beer.SourceUrl), out var date))
@@ -61,6 +65,7 @@ public class UntappdScraperService
             filtered = allBeers
                 .Where(b => b.LastActivityDate == null || b.LastActivityDate >= cutoff)
                 .ToList();
+            progress?.Report($"Activity filter applied — {filtered.Count} product{(filtered.Count == 1 ? "" : "s")} remain after {rollingWindowDays}-day window...");
         }
         else
         {
@@ -68,21 +73,25 @@ public class UntappdScraperService
         }
 
         // Step 5: Resolve duplicates (exact normalized name match, keep highest check-in count)
+        progress?.Report("Resolving duplicates...");
         return ResolveDuplicates(filtered);
     }
 
     // ── Beer list pagination ──────────────────────────────────────────────────
 
-    private async Task<List<ScrapedProduct>> ScrapeBeerListAsync(string beerPageBase, CancellationToken ct)
+    private async Task<List<ScrapedProduct>> ScrapeBeerListAsync(
+        string beerPageBase, IProgress<string>? progress, CancellationToken ct)
     {
         var results = new List<ScrapedProduct>();
         int offset = 0;
         const int pageSize = 25;
         bool hasMore = true;
+        int pageNum = 1;
 
         while (hasMore)
         {
             ct.ThrowIfCancellationRequested();
+            progress?.Report($"Fetching beer list, page {pageNum}...");
             var url = offset == 0 ? beerPageBase : $"{beerPageBase}?offset={offset}";
             var html = await FetchHtmlAsync(url, ct);
             if (html is null) break;
@@ -103,6 +112,7 @@ public class UntappdScraperService
 
             hasMore = beerNodes.Count >= pageSize;
             offset += pageSize;
+            pageNum++;
 
             // Polite delay between pages
             if (hasMore)
@@ -157,7 +167,7 @@ public class UntappdScraperService
     /// Returns a map of normalized beer URL → most recent check-in date.
     /// </summary>
     private async Task<Dictionary<string, DateTime>> ScrapeActivityFeedAsync(
-        string slug, int rollingWindowDays, CancellationToken ct)
+        string slug, int rollingWindowDays, IProgress<string>? progress, CancellationToken ct)
     {
         var result = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         if (rollingWindowDays <= 0) return result;
@@ -166,10 +176,12 @@ public class UntappdScraperService
         int offset = 0;
         const int pageSize = 25;
         bool keepGoing = true;
+        int pageNum = 1;
 
         while (keepGoing)
         {
             ct.ThrowIfCancellationRequested();
+            progress?.Report($"Fetching activity feed, page {pageNum}...");
             var url = $"https://untappd.com/{slug}/activity?offset={offset}";
             var html = await FetchHtmlAsync(url, ct);
             if (html is null) break;
@@ -220,6 +232,7 @@ public class UntappdScraperService
 
             keepGoing = !hitCutoff && found >= pageSize;
             offset += pageSize;
+            pageNum++;
 
             if (keepGoing)
                 await Task.Delay(400, ct);

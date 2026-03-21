@@ -20,7 +20,7 @@ import {
 import { toast } from 'sonner'
 import {
   getProductListByProject, createProductList, updateProductList,
-  scrapeAndSave, toggleProduct, publishProductList, scrapePreview,
+  scrapeAndSave, toggleProduct, publishProductList,
   type ProductListDetailDto, type ProductDto, type ScrapedProductDto,
 } from '@/api/productList'
 import { useQuery as useProjectsQuery } from '@tanstack/react-query'
@@ -210,6 +210,14 @@ function SetupDialog({
   )
 }
 
+const WINDOW_OPTIONS = [
+  { value: '365', label: '1 year' },
+  { value: '730', label: '2 years' },
+  { value: '1095', label: '3 years' },
+  { value: '1825', label: '5 years' },
+  { value: '0', label: 'No filter' },
+]
+
 // ── Scraper preview ───────────────────────────────────────────────────────────
 
 function ScraperPreview() {
@@ -217,12 +225,64 @@ function ScraperPreview() {
   const [days, setDays] = useState('730')
   const [results, setResults] = useState<ScrapedProductDto[] | null>(null)
   const [showDuplicates, setShowDuplicates] = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
+  const [progressLog, setProgressLog] = useState<string[]>([])
+  const abortRef = useState<AbortController | null>(null)
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: () => scrapePreview(url.trim(), Number(days) || 730),
-    onSuccess: data => { setResults(data); setShowDuplicates(false) },
-    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Scrape failed'),
-  })
+  async function runScrape() {
+    if (!url.trim()) return
+    const abort = new AbortController()
+    abortRef[1](abort)
+    setIsRunning(true)
+    setResults(null)
+    setProgressLog([])
+    setShowDuplicates(false)
+
+    const token = (await import('@/store/authStore')).useAuthStore.getState().token
+    const params = new URLSearchParams({ url: url.trim(), rollingWindowDays: days })
+
+    try {
+      const response = await fetch(`/api/producer-product-lists/scrape-stream?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: abort.signal,
+      })
+      if (!response.ok || !response.body) {
+        toast.error('Scrape request failed')
+        setIsRunning(false)
+        return
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const event = JSON.parse(line.slice(6)) as { type: string; payload: string }
+          if (event.type === 'progress') {
+            const msg = JSON.parse(event.payload) as string
+            setProgressLog(prev => [...prev, msg])
+          } else if (event.type === 'complete') {
+            const products = JSON.parse(event.payload) as ScrapedProductDto[]
+            setResults(products)
+          } else if (event.type === 'error') {
+            toast.error(JSON.parse(event.payload) as string)
+          }
+        }
+      }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') toast.error('Scrape failed')
+    } finally {
+      setIsRunning(false)
+      abortRef[1](null)
+    }
+  }
 
   const main = results?.filter(r => !r.isDuplicate) ?? []
   const dupes = results?.filter(r => r.isDuplicate) ?? []
@@ -237,30 +297,31 @@ function ScraperPreview() {
               value={url}
               onChange={e => setUrl(e.target.value)}
               placeholder="https://untappd.com/BreweryName"
-              onKeyDown={e => { if (e.key === 'Enter' && url.trim()) mutate() }}
+              onKeyDown={e => { if (e.key === 'Enter' && url.trim() && !isRunning) runScrape() }}
             />
           </div>
           <div className="w-40 space-y-1.5">
             <Label>Activity Window</Label>
-            <Select value={days} onValueChange={setDays}>
+            <Select value={days} onValueChange={setDays} disabled={isRunning}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {WINDOW_OPTIONS.find(o => o.value === days)?.label}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="365">1 year</SelectItem>
-                <SelectItem value="730">2 years</SelectItem>
-                <SelectItem value="1095">3 years</SelectItem>
-                <SelectItem value="1825">5 years</SelectItem>
-                <SelectItem value="0">No filter</SelectItem>
+                {WINDOW_OPTIONS.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <Button
-            onClick={() => mutate()}
-            disabled={isPending || !url.trim()}
+            onClick={() => isRunning ? abortRef[0]?.abort() : runScrape()}
+            disabled={!url.trim() && !isRunning}
+            variant={isRunning ? 'outline' : 'default'}
           >
-            <Search className={`h-4 w-4 mr-1.5 ${isPending ? 'animate-pulse' : ''}`} />
-            {isPending ? 'Scraping...' : 'Scrape'}
+            <Search className={`h-4 w-4 mr-1.5 ${isRunning ? 'animate-pulse' : ''}`} />
+            {isRunning ? 'Cancel' : 'Scrape'}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -268,9 +329,16 @@ function ScraperPreview() {
         </p>
       </div>
 
-      {isPending && (
-        <div className="rounded-md border p-4 space-y-2">
-          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+      {isRunning && (
+        <div className="rounded-md border p-3 bg-muted/20 space-y-1 font-mono text-xs text-muted-foreground">
+          {progressLog.length === 0
+            ? <span className="animate-pulse">Connecting...</span>
+            : progressLog.map((msg, i) => (
+              <div key={i} className={i === progressLog.length - 1 ? 'text-foreground' : ''}>
+                {i === progressLog.length - 1 ? '→ ' : '✓ '}{msg}
+              </div>
+            ))
+          }
         </div>
       )}
 
