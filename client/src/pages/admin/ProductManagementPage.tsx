@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,12 +20,11 @@ import {
 import { toast } from 'sonner'
 import {
   getProductListByProject, createProductList, updateProductList,
-  scrapeAndSave, toggleProduct, publishProductList,
+  scrapeAndSave, toggleProduct, publishProductList, scrapePreview,
   type ProductListDetailDto, type ProductDto, type ScrapedProductDto,
 } from '@/api/productList'
 import { useQuery as useProjectsQuery } from '@tanstack/react-query'
 import { getProjects } from '@/api/projects'
-import { useAuthStore } from '@/store/authStore'
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -226,65 +225,32 @@ function ScraperPreview() {
   const [days, setDays] = useState('730')
   const [results, setResults] = useState<ScrapedProductDto[] | null>(null)
   const [showDuplicates, setShowDuplicates] = useState(false)
-  const [isRunning, setIsRunning] = useState(false)
-  const [progressLog, setProgressLog] = useState<string[]>([])
-  const abortRef = useState<AbortController | null>(null)
+  const [elapsed, setElapsed] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  async function runScrape() {
-    if (!url.trim()) return
-    const abort = new AbortController()
-    abortRef[1](abort)
-    setIsRunning(true)
-    setResults(null)
-    setProgressLog([])
-    setShowDuplicates(false)
-
-    const token = useAuthStore.getState().token
-    const params = new URLSearchParams({ url: url.trim(), rollingWindowDays: days })
-
-    try {
-      const response = await fetch(`/api/producer-product-lists/scrape-stream?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: abort.signal,
-      })
-      if (!response.ok || !response.body) {
-        toast.error(`Scrape request failed (${response.status})`)
-        setIsRunning(false)
-        return
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const event = JSON.parse(line.slice(6)) as { type: string; payload: unknown }
-          if (event.type === 'progress') {
-            setProgressLog(prev => [...prev, event.payload as string])
-          } else if (event.type === 'complete') {
-            setResults(event.payload as ScrapedProductDto[])
-          } else if (event.type === 'error') {
-            toast.error(event.payload as string)
-          }
-        }
-      }
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') toast.error('Scrape failed')
-    } finally {
-      setIsRunning(false)
-      abortRef[1](null)
-    }
-  }
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => {
+      setElapsed(0)
+      timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000)
+      return scrapePreview(url.trim(), Number(days) || 730)
+    },
+    onSuccess: data => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      setResults(data)
+      setShowDuplicates(false)
+    },
+    onError: (e: any) => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      toast.error(e?.response?.data?.message ?? e?.message ?? 'Scrape failed')
+    },
+  })
 
   const main = results?.filter(r => !r.isDuplicate) ?? []
   const dupes = results?.filter(r => r.isDuplicate) ?? []
+
+  const elapsedStr = elapsed > 0
+    ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`
+    : null
 
   return (
     <div className="space-y-4">
@@ -296,12 +262,12 @@ function ScraperPreview() {
               value={url}
               onChange={e => setUrl(e.target.value)}
               placeholder="https://untappd.com/BreweryName"
-              onKeyDown={e => { if (e.key === 'Enter' && url.trim() && !isRunning) runScrape() }}
+              onKeyDown={e => { if (e.key === 'Enter' && url.trim() && !isPending) mutate() }}
             />
           </div>
           <div className="w-40 space-y-1.5">
             <Label>Activity Window</Label>
-            <Select value={days} onValueChange={setDays} disabled={isRunning}>
+            <Select value={days} onValueChange={setDays} disabled={isPending}>
               <SelectTrigger>
                 <SelectValue>
                   {WINDOW_OPTIONS.find(o => o.value === days)?.label}
@@ -314,32 +280,15 @@ function ScraperPreview() {
               </SelectContent>
             </Select>
           </div>
-          <Button
-            onClick={() => isRunning ? abortRef[0]?.abort() : runScrape()}
-            disabled={!url.trim() && !isRunning}
-            variant={isRunning ? 'outline' : 'default'}
-          >
-            <Search className={`h-4 w-4 mr-1.5 ${isRunning ? 'animate-pulse' : ''}`} />
-            {isRunning ? 'Cancel' : 'Scrape'}
+          <Button onClick={() => mutate()} disabled={isPending || !url.trim()}>
+            <Search className={`h-4 w-4 mr-1.5 ${isPending ? 'animate-pulse' : ''}`} />
+            {isPending ? `Scraping... ${elapsedStr ?? ''}` : 'Scrape'}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
           Results are not saved — use this to preview a brewery's product list before attaching it to a project.
         </p>
       </div>
-
-      {isRunning && (
-        <div className="rounded-md border p-3 bg-muted/20 space-y-1 font-mono text-xs text-muted-foreground">
-          {progressLog.length === 0
-            ? <span className="animate-pulse">Connecting...</span>
-            : progressLog.map((msg, i) => (
-              <div key={i} className={i === progressLog.length - 1 ? 'text-foreground' : ''}>
-                {i === progressLog.length - 1 ? '→ ' : '✓ '}{msg}
-              </div>
-            ))
-          }
-        </div>
-      )}
 
       {results && !isPending && (
         <div className="rounded-md border">
