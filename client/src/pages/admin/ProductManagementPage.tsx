@@ -25,6 +25,7 @@ import {
 } from '@/api/productList'
 import { useQuery as useProjectsQuery } from '@tanstack/react-query'
 import { getProjects } from '@/api/projects'
+import { useAuthStore } from '@/store/authStore'
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -238,7 +239,7 @@ function ScraperPreview() {
     setProgressLog([])
     setShowDuplicates(false)
 
-    const token = (await import('@/store/authStore')).useAuthStore.getState().token
+    const token = useAuthStore.getState().token
     const params = new URLSearchParams({ url: url.trim(), rollingWindowDays: days })
 
     try {
@@ -247,7 +248,7 @@ function ScraperPreview() {
         signal: abort.signal,
       })
       if (!response.ok || !response.body) {
-        toast.error('Scrape request failed')
+        toast.error(`Scrape request failed (${response.status})`)
         setIsRunning(false)
         return
       }
