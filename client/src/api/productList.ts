@@ -42,16 +42,6 @@ export interface ProductListDetailDto {
   products: ProductDto[]
 }
 
-export interface ScrapedProductDto {
-  name: string
-  style?: string
-  sourceUrl?: string
-  checkInCount: number
-  lastActivityDate?: string
-  isDuplicate: boolean
-  duplicateOfName?: string
-}
-
 // ── Admin endpoints ───────────────────────────────────────────────────────────
 
 export const getProductListByProject = (projectId: number): Promise<ProductListDetailDto | null> =>
@@ -75,12 +65,6 @@ export const updateProductList = (id: number, data: {
 }): Promise<ProductListDetailDto> =>
   api.put(`/producer-product-lists/${id}`, data).then(r => r.data)
 
-export const scrapePreview = (url: string, rollingWindowDays: number): Promise<ScrapedProductDto[]> =>
-  api.post('/producer-product-lists/scrape-preview', { url, rollingWindowDays }).then(r => r.data)
-
-export const scrapeAndSave = (id: number): Promise<ProductListDetailDto> =>
-  api.post(`/producer-product-lists/${id}/scrape`).then(r => r.data)
-
 export const toggleProduct = (listId: number, productId: number, isIncluded: boolean): Promise<ProductDto> =>
   api.patch(`/producer-product-lists/${listId}/products/${productId}/toggle`, { isIncluded }).then(r => r.data)
 
@@ -89,9 +73,6 @@ export const publishProductList = (id: number): Promise<ProductListDetailDto> =>
 
 export const deleteProductList = (id: number): Promise<void> =>
   api.delete(`/producer-product-lists/${id}`)
-
-export const getProductFields = (): Promise<string[]> =>
-  api.get('/producer-product-lists/product-fields').then(r => r.data)
 
 // ── Portal (customer) endpoints ───────────────────────────────────────────────
 

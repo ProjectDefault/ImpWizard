@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text.Json;
-using System.Threading.Channels;
 
 namespace ImpWizard.Api.Controllers;
 
@@ -15,13 +13,11 @@ namespace ImpWizard.Api.Controllers;
 public class ProducerProductListController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly UntappdScraperService _scraper;
     private readonly IAuditService _audit;
 
-    public ProducerProductListController(AppDbContext db, UntappdScraperService scraper, IAuditService audit)
+    public ProducerProductListController(AppDbContext db, IAuditService audit)
     {
         _db = db;
-        _scraper = scraper;
         _audit = audit;
     }
 
@@ -46,9 +42,6 @@ public class ProducerProductListController : ControllerBase
 
     public record CreateListRequest(int ProjectId, string Title, string? SourceUrl, int RollingWindowDays = 730);
     public record UpdateListRequest(string? Title, string? SourceUrl, int? RollingWindowDays);
-    public record ScrapePreviewRequest(string Url, int RollingWindowDays = 730);
-    public record ScrapedProductDto(string Name, string? Style, string? SourceUrl, int CheckInCount,
-        DateTime? LastActivityDate, bool IsDuplicate, string? DuplicateOfName);
     public record ToggleProductRequest(bool IsIncluded);
     public record AddCustomerProductRequest(string Name, string? Style, string? CustomerNote);
     public record UpdateCustomerNoteRequest(string? CustomerNote);
@@ -89,91 +82,6 @@ public class ProducerProductListController : ControllerBase
             pl.RollingWindowDays, pl.Status, pl.LastScrapedAt, pl.PublishedAt, pl.SubmittedAt,
             pl.Products.OrderBy(p => p.Name).Select(p =>
                 ToDto(p, p.DuplicateOfId.HasValue && nameMap.TryGetValue(p.DuplicateOfId.Value, out var n) ? n : null)));
-    }
-
-    // ── Scrape preview (no DB write) ──────────────────────────────────────────
-
-    [HttpPost("scrape-preview")]
-    public async Task<IActionResult> ScrapePreview([FromBody] ScrapePreviewRequest req, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(req.Url))
-            return BadRequest(new { message = "URL is required." });
-
-        try
-        {
-            var products = await _scraper.ScrapeAsync(req.Url.Trim(), req.RollingWindowDays, null, ct);
-            var dtos = products.Select(p => new ScrapedProductDto(
-                p.Name, p.Style, p.SourceUrl, p.CheckInCount,
-                p.LastActivityDate, p.IsDuplicate, p.DuplicateOfName));
-            return Ok(dtos);
-        }
-        catch (OperationCanceledException)
-        {
-            return StatusCode(499);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(502, new { message = $"Scrape failed: {ex.Message}" });
-        }
-    }
-
-    // ── Scrape preview with SSE progress streaming ────────────────────────────
-
-    [HttpGet("scrape-stream")]
-    public async Task ScrapeStream(
-        [FromQuery] string url, [FromQuery] int rollingWindowDays = 730, CancellationToken ct = default)
-    {
-        Response.Headers["Content-Type"] = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["X-Accel-Buffering"] = "no";
-        Response.Headers["Connection"] = "keep-alive";
-
-        var channel = Channel.CreateUnbounded<(string type, string payload)>(
-            new UnboundedChannelOptions { SingleWriter = true });
-
-        async Task Send(string type, string payload)
-        {
-            await Response.WriteAsync($"data: {{\"type\":\"{type}\",\"payload\":{payload}}}\n\n", ct);
-            await Response.Body.FlushAsync(ct);
-        }
-
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            await Send("error", JsonSerializer.Serialize("URL is required."));
-            return;
-        }
-
-        var progress = new Progress<string>(msg =>
-            channel.Writer.TryWrite(("progress", JsonSerializer.Serialize(msg))));
-
-        var scrapeTask = Task.Run(async () =>
-        {
-            try
-            {
-                var products = await _scraper.ScrapeAsync(url.Trim(), rollingWindowDays, progress, ct);
-                var dtos = products.Select(p => new ScrapedProductDto(
-                    p.Name, p.Style, p.SourceUrl, p.CheckInCount,
-                    p.LastActivityDate, p.IsDuplicate, p.DuplicateOfName));
-                channel.Writer.TryWrite(("complete", JsonSerializer.Serialize(dtos)));
-            }
-            catch (OperationCanceledException)
-            {
-                channel.Writer.TryWrite(("cancelled", "null"));
-            }
-            catch (Exception ex)
-            {
-                channel.Writer.TryWrite(("error", JsonSerializer.Serialize(ex.Message)));
-            }
-            finally
-            {
-                channel.Writer.Complete();
-            }
-        }, ct);
-
-        await foreach (var (type, payload) in channel.Reader.ReadAllAsync(ct))
-            await Send(type, payload);
-
-        await scrapeTask;
     }
 
     // ── List endpoints ────────────────────────────────────────────────────────
@@ -252,96 +160,6 @@ public class ProducerProductListController : ControllerBase
         return Ok(ToDetail(full!));
     }
 
-    // ── Scrape and populate ───────────────────────────────────────────────────
-
-    [HttpPost("{id:int}/scrape")]
-    public async Task<IActionResult> Scrape(int id, CancellationToken ct)
-    {
-        var pl = await LoadFullAsync(id);
-        if (pl is null) return NotFound();
-        if (!await CanAccessProjectAsync(pl.ProjectId)) return Forbid();
-        if (string.IsNullOrWhiteSpace(pl.SourceUrl))
-            return BadRequest(new { message = "SourceUrl must be set before scraping." });
-        if (pl.Status == "Submitted")
-            return BadRequest(new { message = "Cannot re-scrape a submitted list." });
-
-        try
-        {
-            var scraped = await _scraper.ScrapeAsync(pl.SourceUrl, pl.RollingWindowDays, null, ct);
-
-            // Clear existing scraped products (keep customer-added ones)
-            var toRemove = pl.Products.Where(p => !p.IsCustomerAdded).ToList();
-            _db.ProducerProducts.RemoveRange(toRemove);
-
-            // Build a map of winner names (for DuplicateOfId resolution in same batch)
-            var winners = scraped
-                .Where(s => !s.IsDuplicate)
-                .ToDictionary(s => s.Name, s => s, StringComparer.OrdinalIgnoreCase);
-
-            var savedWinners = new Dictionary<string, ProducerProduct>(StringComparer.OrdinalIgnoreCase);
-
-            // Add winners first
-            foreach (var s in scraped.Where(s => !s.IsDuplicate))
-            {
-                var p = new ProducerProduct
-                {
-                    ProducerProductListId = id,
-                    Name = s.Name,
-                    Style = s.Style,
-                    SourceUrl = s.SourceUrl,
-                    LastActivityDate = s.LastActivityDate,
-                    CheckInCount = s.CheckInCount,
-                    IsIncluded = true,
-                    IsCustomerAdded = false,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                };
-                _db.ProducerProducts.Add(p);
-                savedWinners[s.Name] = p;
-            }
-
-            await _db.SaveChangesAsync();
-
-            // Add duplicates with DuplicateOfId
-            foreach (var s in scraped.Where(s => s.IsDuplicate))
-            {
-                var winnerEntity = s.DuplicateOfName != null && savedWinners.TryGetValue(s.DuplicateOfName, out var w) ? w : null;
-                var dup = new ProducerProduct
-                {
-                    ProducerProductListId = id,
-                    Name = s.Name,
-                    Style = s.Style,
-                    SourceUrl = s.SourceUrl,
-                    LastActivityDate = s.LastActivityDate,
-                    CheckInCount = s.CheckInCount,
-                    IsIncluded = false,
-                    IsCustomerAdded = false,
-                    DuplicateOfId = winnerEntity?.Id,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                };
-                _db.ProducerProducts.Add(dup);
-            }
-
-            pl.LastScrapedAt = DateTime.UtcNow;
-            pl.Status = "Draft";
-            pl.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-            await _audit.LogAsync(User, "product_list.scraped", "ProducerProductList", id.ToString(), pl.Title, pl.ProjectId);
-
-            var full = await LoadFullAsync(id);
-            return Ok(ToDetail(full!));
-        }
-        catch (OperationCanceledException)
-        {
-            return StatusCode(499);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(502, new { message = $"Scrape failed: {ex.Message}" });
-        }
-    }
-
     // ── Product include/exclude toggle (admin) ────────────────────────────────
 
     [HttpPatch("{id:int}/products/{productId:int}/toggle")]
@@ -402,11 +220,6 @@ public class ProducerProductListController : ControllerBase
         return NoContent();
     }
 
-    // ── Available product fields for import template column mapping ────────────
-
-    [HttpGet("product-fields")]
-    public IActionResult GetProductFields() =>
-        Ok(UntappdScraperService.ProductFields);
 }
 
 // ── Portal-side controller (customer access) ──────────────────────────────────
