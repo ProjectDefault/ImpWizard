@@ -54,8 +54,15 @@ builder.Services.AddHttpClient("Untappd", client =>
     client.DefaultRequestHeaders.Add("User-Agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
     client.DefaultRequestHeaders.Add("Accept",
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-    client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.5");
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+    client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+    client.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
+    client.DefaultRequestHeaders.Add("Referer", "https://untappd.com/");
+    client.DefaultRequestHeaders.Add("Sec-Fetch-Dest", "document");
+    client.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "navigate");
+    client.DefaultRequestHeaders.Add("Sec-Fetch-Site", "same-origin");
+    client.DefaultRequestHeaders.Add("Sec-Fetch-User", "?1");
+    client.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddScoped<ImpWizard.Api.Services.UntappdScraperService>();

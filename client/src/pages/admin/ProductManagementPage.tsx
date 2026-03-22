@@ -265,15 +265,13 @@ function ScraperPreview() {
         buffer = lines.pop() ?? ''
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
-          const event = JSON.parse(line.slice(6)) as { type: string; payload: string }
+          const event = JSON.parse(line.slice(6)) as { type: string; payload: unknown }
           if (event.type === 'progress') {
-            const msg = JSON.parse(event.payload) as string
-            setProgressLog(prev => [...prev, msg])
+            setProgressLog(prev => [...prev, event.payload as string])
           } else if (event.type === 'complete') {
-            const products = JSON.parse(event.payload) as ScrapedProductDto[]
-            setResults(products)
+            setResults(event.payload as ScrapedProductDto[])
           } else if (event.type === 'error') {
-            toast.error(JSON.parse(event.payload) as string)
+            toast.error(event.payload as string)
           }
         }
       }
