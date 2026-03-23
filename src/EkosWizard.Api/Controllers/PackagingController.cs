@@ -391,6 +391,7 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
     /// Download a CSV template for bulk import.
     /// </summary>
     [HttpGet("import/template")]
+    [AllowAnonymous]
     public IActionResult GetImportTemplate()
     {
         var csv = "Type,Count,Volume,Style\nCase,4x6,16oz,Can\nKeg,,30L,\nSingle,,750ml,Bottle\n";
