@@ -49,6 +49,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<BulkSubmissionCell> BulkSubmissionCells => Set<BulkSubmissionCell>();
     public DbSet<ProducerProductList> ProducerProductLists => Set<ProducerProductList>();
     public DbSet<ProducerProduct> ProducerProducts => Set<ProducerProduct>();
+    public DbSet<PackagingType> PackagingTypes => Set<PackagingType>();
+    public DbSet<PackagingVolume> PackagingVolumes => Set<PackagingVolume>();
+    public DbSet<PackagingStyle> PackagingStyles => Set<PackagingStyle>();
+    public DbSet<PackagingEntry> PackagingEntries => Set<PackagingEntry>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -269,6 +273,24 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                      j.ToTable("CatalogItemCategories");
                  }
              );
+        });
+
+        builder.Entity<PackagingEntry>(e =>
+        {
+            e.HasOne(pe => pe.Type)
+             .WithMany(pt => pt.Entries)
+             .HasForeignKey(pe => pe.PackagingTypeId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(pe => pe.Volume)
+             .WithMany(pv => pv.Entries)
+             .HasForeignKey(pe => pe.PackagingVolumeId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(pe => pe.Style)
+             .WithMany(ps => ps.Entries)
+             .HasForeignKey(pe => pe.PackagingStyleId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<ProjectUserAccess>(e =>

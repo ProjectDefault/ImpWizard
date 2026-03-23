@@ -854,6 +854,21 @@ public class PortalController : ControllerBase
                     .OrderBy(n => n)
                     .ToListAsync(),
 
+            "PackagingType" =>
+                (await _db.PackagingEntries
+                    .Where(e => e.IsActive)
+                    .OrderBy(e => e.SortOrder).ThenBy(e => e.Type.Name).ThenBy(e => e.Volume.Name)
+                    .Select(e => new { TypeName = e.Type.Name, e.Count, VolumeName = e.Volume.Name, StyleName = (string?)e.Style!.Name })
+                    .ToListAsync())
+                .Select(e => {
+                    var parts = new List<string> { e.TypeName };
+                    if (e.Count is not null) parts.Add(e.Count);
+                    parts.Add(e.VolumeName);
+                    if (e.StyleName is not null) parts.Add(e.StyleName);
+                    return string.Join(" - ", parts);
+                })
+                .ToList(),
+
             _ => []
         };
 
