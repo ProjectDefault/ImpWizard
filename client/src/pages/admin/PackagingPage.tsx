@@ -13,7 +13,7 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
-import { Pencil, Trash2, Plus, Package, Upload, Download } from 'lucide-react'
+import { Pencil, Trash2, Plus, Package, Upload, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getPackagingTypes, createPackagingType, updatePackagingType, deletePackagingType,
@@ -29,8 +29,9 @@ import {
 
 // ── Label preview helper ──────────────────────────────────────────────────────
 
-function computeLabel(typeName: string, count: string, volumeName: string, styleName: string, hasCount: boolean, hasStyle: boolean) {
-  const parts = [typeName]
+function computeLabel(typeName: string, showTypeInLabel: boolean, count: string, volumeName: string, styleName: string, hasCount: boolean, hasStyle: boolean) {
+  const parts: string[] = []
+  if (showTypeInLabel) parts.push(typeName)
   if (hasCount && count.trim()) parts.push(count.trim())
   parts.push(volumeName)
   if (hasStyle && styleName) parts.push(styleName)
@@ -160,13 +161,32 @@ function ImportDialog({ open, onClose, onSuccess }: { open: boolean; onClose: ()
 
 // ── Entries tab ───────────────────────────────────────────────────────────────
 
+type SortCol = 'label' | 'typeName' | 'volumeName' | 'styleName' | 'count' | 'sortOrder'
+
 function EntriesTab() {
   const qc = useQueryClient()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<PackagingEntryDto | null>(null)
+  const [sortCol, setSortCol] = useState<SortCol>('sortOrder')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
-  const { data: entries = [], isLoading } = useQuery({ queryKey: ['packaging-entries'], queryFn: getPackagingEntries })
+  function handleSort(col: SortCol) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+  }
+
+  const { data: rawEntries = [], isLoading } = useQuery({ queryKey: ['packaging-entries'], queryFn: getPackagingEntries })
+
+  const entries = [...rawEntries].sort((a, b) => {
+    let av: string | number = a[sortCol] ?? ''
+    let bv: string | number = b[sortCol] ?? ''
+    if (typeof av === 'string') av = av.toLowerCase()
+    if (typeof bv === 'string') bv = bv.toLowerCase()
+    if (av < bv) return sortDir === 'asc' ? -1 : 1
+    if (av > bv) return sortDir === 'asc' ? 1 : -1
+    return 0
+  })
   const { data: types = [] } = useQuery({ queryKey: ['packaging-types'], queryFn: getPackagingTypes })
   const { data: volumes = [] } = useQuery({ queryKey: ['packaging-volumes'], queryFn: getPackagingVolumes })
   const { data: styles = [] } = useQuery({ queryKey: ['packaging-styles'], queryFn: getPackagingStyles })
@@ -182,7 +202,7 @@ function EntriesTab() {
   const selectedStyle = styles.find(s => s.id === Number(styleId))
 
   const previewLabel = selectedType && selectedVolume
-    ? computeLabel(selectedType.name, count, selectedVolume.name, selectedStyle?.name ?? '', selectedType.hasCount, selectedType.hasStyle)
+    ? computeLabel(selectedType.name, selectedType.showTypeInLabel, count, selectedVolume.name, selectedStyle?.name ?? '', selectedType.hasCount, selectedType.hasStyle)
     : null
 
   function openCreate() {
@@ -302,11 +322,29 @@ function EntriesTab() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 border-b">
               <tr>
-                <th className="text-left px-4 py-2 font-medium">Label</th>
-                <th className="text-left px-4 py-2 font-medium hidden md:table-cell">Type</th>
-                <th className="text-left px-4 py-2 font-medium hidden md:table-cell">Volume</th>
-                <th className="text-left px-4 py-2 font-medium hidden lg:table-cell">Style</th>
-                <th className="text-left px-4 py-2 font-medium hidden lg:table-cell">Count</th>
+                {([
+                  { col: 'label' as SortCol, label: 'Label', className: 'text-left px-4 py-2' },
+                  { col: 'typeName' as SortCol, label: 'Type', className: 'text-left px-4 py-2 hidden md:table-cell' },
+                  { col: 'volumeName' as SortCol, label: 'Volume', className: 'text-left px-4 py-2 hidden md:table-cell' },
+                  { col: 'styleName' as SortCol, label: 'Style', className: 'text-left px-4 py-2 hidden lg:table-cell' },
+                  { col: 'count' as SortCol, label: 'Count', className: 'text-left px-4 py-2 hidden lg:table-cell' },
+                  { col: 'sortOrder' as SortCol, label: 'Sort', className: 'text-center px-4 py-2' },
+                ] as const).map(({ col, label, className }) => (
+                  <th key={col} className={className}>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 font-medium hover:text-foreground text-foreground/80"
+                      onClick={() => handleSort(col)}
+                    >
+                      {label}
+                      {sortCol === col
+                        ? sortDir === 'asc'
+                          ? <ArrowUp className="h-3 w-3" />
+                          : <ArrowDown className="h-3 w-3" />
+                        : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    </button>
+                  </th>
+                ))}
                 <th className="text-center px-4 py-2 font-medium">Active</th>
                 <th className="px-4 py-2" />
               </tr>
@@ -319,6 +357,7 @@ function EntriesTab() {
                   <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{e.volumeName}</td>
                   <td className="px-4 py-2 text-muted-foreground hidden lg:table-cell">{e.styleName ?? '—'}</td>
                   <td className="px-4 py-2 text-muted-foreground hidden lg:table-cell">{e.count ?? '—'}</td>
+                  <td className="px-4 py-2 text-center text-muted-foreground text-xs">{e.sortOrder}</td>
                   <td className="px-4 py-2 text-center">
                     {e.isActive
                       ? <Badge variant="outline" className="text-xs border-green-300 text-green-700">Active</Badge>
@@ -664,12 +703,13 @@ function ComponentsTab() {
       <SubCatalogSection
         title="Types"
         items={types}
-        onAdd={(name, sortOrder, extra) => createType.mutate({ name, hasCount: Boolean(extra.hasCount), hasStyle: Boolean(extra.hasStyle), sortOrder })}
-        onEdit={(item, name, sortOrder, extra) => updateType.mutate({ id: item.id, name, hasCount: extra.hasCount as boolean, hasStyle: extra.hasStyle as boolean, sortOrder, isActive: extra.isActive as boolean })}
+        onAdd={(name, sortOrder, extra) => createType.mutate({ name, hasCount: Boolean(extra.hasCount), hasStyle: Boolean(extra.hasStyle), showTypeInLabel: extra.showTypeInLabel !== false, sortOrder })}
+        onEdit={(item, name, sortOrder, extra) => updateType.mutate({ id: item.id, name, hasCount: extra.hasCount as boolean, hasStyle: extra.hasStyle as boolean, showTypeInLabel: extra.showTypeInLabel as boolean, sortOrder, isActive: extra.isActive as boolean })}
         onDelete={item => deleteType.mutate(item.id)}
         extraColumns={[
           { header: 'Has Count', render: (item: PackagingTypeDto) => item.hasCount ? <span className="text-xs text-green-700">✓</span> : <span className="text-xs text-muted-foreground">—</span> },
           { header: 'Has Style', render: (item: PackagingTypeDto) => item.hasStyle ? <span className="text-xs text-green-700">✓</span> : <span className="text-xs text-muted-foreground">—</span> },
+          { header: 'Show Type', render: (item: PackagingTypeDto) => item.showTypeInLabel ? <span className="text-xs text-green-700">✓</span> : <span className="text-xs text-muted-foreground">—</span> },
         ]}
         renderExtraForm={(extra, setExtra) => (
           <>
@@ -688,6 +728,14 @@ function ComponentsTab() {
               />
               <Label>Has Style</Label>
               <span className="text-xs text-muted-foreground">(e.g. Can, Bottle)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={extra.showTypeInLabel !== false}
+                onCheckedChange={v => setExtra('showTypeInLabel', v)}
+              />
+              <Label>Show Type in Label</Label>
+              <span className="text-xs text-muted-foreground">(prefix label with type name)</span>
             </div>
           </>
         )}

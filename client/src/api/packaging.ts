@@ -7,6 +7,7 @@ export interface PackagingTypeDto {
   name: string
   hasCount: boolean
   hasStyle: boolean
+  showTypeInLabel: boolean
   sortOrder: number
   isActive: boolean
 }
@@ -15,6 +16,7 @@ export interface CreatePackagingTypePayload {
   name: string
   hasCount: boolean
   hasStyle: boolean
+  showTypeInLabel?: boolean
   sortOrder?: number
 }
 
@@ -22,6 +24,7 @@ export interface UpdatePackagingTypePayload {
   name?: string
   hasCount?: boolean
   hasStyle?: boolean
+  showTypeInLabel?: boolean
   sortOrder?: number
   isActive?: boolean
 }
@@ -74,6 +77,7 @@ export interface PackagingEntryDto {
   typeName: string
   typeHasCount: boolean
   typeHasStyle: boolean
+  typeShowTypeInLabel: boolean
   count: string | null
   packagingVolumeId: number
   volumeName: string

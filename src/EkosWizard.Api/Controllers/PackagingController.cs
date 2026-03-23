@@ -16,9 +16,9 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
-    public record PackagingTypeDto(int Id, string Name, bool HasCount, bool HasStyle, int SortOrder, bool IsActive);
-    public record CreatePackagingTypeRequest(string Name, bool HasCount, bool HasStyle, int SortOrder = 0);
-    public record UpdatePackagingTypeRequest(string? Name, bool? HasCount, bool? HasStyle, int? SortOrder, bool? IsActive);
+    public record PackagingTypeDto(int Id, string Name, bool HasCount, bool HasStyle, bool ShowTypeInLabel, int SortOrder, bool IsActive);
+    public record CreatePackagingTypeRequest(string Name, bool HasCount, bool HasStyle, bool ShowTypeInLabel = true, int SortOrder = 0);
+    public record UpdatePackagingTypeRequest(string? Name, bool? HasCount, bool? HasStyle, bool? ShowTypeInLabel, int? SortOrder, bool? IsActive);
 
     public record PackagingVolumeDto(int Id, string Name, int SortOrder, bool IsActive);
     public record CreatePackagingVolumeRequest(string Name, int SortOrder = 0);
@@ -29,7 +29,7 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
     public record UpdatePackagingStyleRequest(string? Name, int? SortOrder, bool? IsActive);
 
     public record PackagingEntryDto(
-        int Id, int PackagingTypeId, string TypeName, bool TypeHasCount, bool TypeHasStyle,
+        int Id, int PackagingTypeId, string TypeName, bool TypeHasCount, bool TypeHasStyle, bool TypeShowTypeInLabel,
         string? Count, int PackagingVolumeId, string VolumeName,
         int? PackagingStyleId, string? StyleName,
         int SortOrder, bool IsActive, string Label);
@@ -47,9 +47,10 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
 
     // ── Label helper ──────────────────────────────────────────────────────────
 
-    private static string ComputeLabel(string typeName, string? count, string volumeName, string? styleName)
+    private static string ComputeLabel(string typeName, bool showTypeInLabel, string? count, string volumeName, string? styleName)
     {
-        var parts = new List<string> { typeName };
+        var parts = new List<string>();
+        if (showTypeInLabel) parts.Add(typeName);
         if (count is not null) parts.Add(count);
         parts.Add(volumeName);
         if (styleName is not null) parts.Add(styleName);
@@ -63,7 +64,7 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
     {
         var items = await _db.PackagingTypes
             .OrderBy(t => t.SortOrder).ThenBy(t => t.Name)
-            .Select(t => new PackagingTypeDto(t.Id, t.Name, t.HasCount, t.HasStyle, t.SortOrder, t.IsActive))
+            .Select(t => new PackagingTypeDto(t.Id, t.Name, t.HasCount, t.HasStyle, t.ShowTypeInLabel, t.SortOrder, t.IsActive))
             .ToListAsync();
         return Ok(items);
     }
@@ -80,6 +81,7 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
             Name = req.Name.Trim(),
             HasCount = req.HasCount,
             HasStyle = req.HasStyle,
+            ShowTypeInLabel = req.ShowTypeInLabel,
             SortOrder = req.SortOrder,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -87,7 +89,7 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
         _db.PackagingTypes.Add(item);
         await _db.SaveChangesAsync();
         await _audit.LogAsync(User, "packaging_type.created", "PackagingType", item.Id.ToString(), item.Name);
-        return Ok(new PackagingTypeDto(item.Id, item.Name, item.HasCount, item.HasStyle, item.SortOrder, item.IsActive));
+        return Ok(new PackagingTypeDto(item.Id, item.Name, item.HasCount, item.HasStyle, item.ShowTypeInLabel, item.SortOrder, item.IsActive));
     }
 
     [HttpPut("types/{id}")]
@@ -100,13 +102,14 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
         if (req.Name is not null) item.Name = req.Name.Trim();
         if (req.HasCount is not null) item.HasCount = req.HasCount.Value;
         if (req.HasStyle is not null) item.HasStyle = req.HasStyle.Value;
+        if (req.ShowTypeInLabel is not null) item.ShowTypeInLabel = req.ShowTypeInLabel.Value;
         if (req.SortOrder is not null) item.SortOrder = req.SortOrder.Value;
         if (req.IsActive is not null) item.IsActive = req.IsActive.Value;
         item.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
         await _audit.LogAsync(User, "packaging_type.updated", "PackagingType", item.Id.ToString(), item.Name);
-        return Ok(new PackagingTypeDto(item.Id, item.Name, item.HasCount, item.HasStyle, item.SortOrder, item.IsActive));
+        return Ok(new PackagingTypeDto(item.Id, item.Name, item.HasCount, item.HasStyle, item.ShowTypeInLabel, item.SortOrder, item.IsActive));
     }
 
     [HttpDelete("types/{id}")]
@@ -273,11 +276,11 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
             .ToListAsync();
 
         return Ok(entries.Select(e => new PackagingEntryDto(
-            e.Id, e.PackagingTypeId, e.Type.Name, e.Type.HasCount, e.Type.HasStyle,
+            e.Id, e.PackagingTypeId, e.Type.Name, e.Type.HasCount, e.Type.HasStyle, e.Type.ShowTypeInLabel,
             e.Count, e.PackagingVolumeId, e.Volume.Name,
             e.PackagingStyleId, e.Style?.Name,
             e.SortOrder, e.IsActive,
-            ComputeLabel(e.Type.Name, e.Count, e.Volume.Name, e.Style?.Name))));
+            ComputeLabel(e.Type.Name, e.Type.ShowTypeInLabel, e.Count, e.Volume.Name, e.Style?.Name))));
     }
 
     [HttpPost("entries")]
@@ -309,11 +312,11 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
         if (entry.PackagingStyleId is not null)
             await _db.Entry(entry).Reference(e => e.Style).LoadAsync();
 
-        var label = ComputeLabel(entry.Type.Name, entry.Count, entry.Volume.Name, entry.Style?.Name);
+        var label = ComputeLabel(entry.Type.Name, entry.Type.ShowTypeInLabel, entry.Count, entry.Volume.Name, entry.Style?.Name);
         await _audit.LogAsync(User, "packaging_entry.created", "PackagingEntry", entry.Id.ToString(), label);
 
         return Ok(new PackagingEntryDto(
-            entry.Id, entry.PackagingTypeId, entry.Type.Name, entry.Type.HasCount, entry.Type.HasStyle,
+            entry.Id, entry.PackagingTypeId, entry.Type.Name, entry.Type.HasCount, entry.Type.HasStyle, entry.Type.ShowTypeInLabel,
             entry.Count, entry.PackagingVolumeId, entry.Volume.Name,
             entry.PackagingStyleId, entry.Style?.Name,
             entry.SortOrder, entry.IsActive,
@@ -360,11 +363,11 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
         entry.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
-        var label = ComputeLabel(entry.Type.Name, entry.Count, entry.Volume.Name, entry.Style?.Name);
+        var label = ComputeLabel(entry.Type.Name, entry.Type.ShowTypeInLabel, entry.Count, entry.Volume.Name, entry.Style?.Name);
         await _audit.LogAsync(User, "packaging_entry.updated", "PackagingEntry", entry.Id.ToString(), label);
 
         return Ok(new PackagingEntryDto(
-            entry.Id, entry.PackagingTypeId, entry.Type.Name, entry.Type.HasCount, entry.Type.HasStyle,
+            entry.Id, entry.PackagingTypeId, entry.Type.Name, entry.Type.HasCount, entry.Type.HasStyle, entry.Type.ShowTypeInLabel,
             entry.Count, entry.PackagingVolumeId, entry.Volume.Name,
             entry.PackagingStyleId, entry.Style?.Name,
             entry.SortOrder, entry.IsActive, label));
