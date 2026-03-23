@@ -51,9 +51,15 @@ public class UsersController : ControllerBase
 
     private static string GenerateTempPassword()
     {
-        const string chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#";
+        const string alpha = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+        const string special = "!@#";
         var rng = Random.Shared;
-        return new string(Enumerable.Range(0, 12).Select(_ => chars[rng.Next(chars.Length)]).ToArray());
+        // Guarantee at least one special character, then shuffle
+        var chars = Enumerable.Range(0, 11).Select(_ => alpha[rng.Next(alpha.Length)])
+            .Append(special[rng.Next(special.Length)])
+            .OrderBy(_ => rng.Next())
+            .ToArray();
+        return new string(chars);
     }
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
