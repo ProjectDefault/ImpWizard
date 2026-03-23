@@ -40,6 +40,7 @@ function computeLabel(typeName: string, count: string, volumeName: string, style
 // ── Import dialog ─────────────────────────────────────────────────────────────
 
 function ImportDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+  const [text, setText] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [result, setResult] = useState<{ created: number; skipped: number; errors: string[] } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -54,6 +55,7 @@ function ImportDialog({ open, onClose, onSuccess }: { open: boolean; onClose: ()
   })
 
   function handleClose() {
+    setText('')
     setFile(null)
     setResult(null)
     onClose()
@@ -61,13 +63,16 @@ function ImportDialog({ open, onClose, onSuccess }: { open: boolean; onClose: ()
 
   function handleSubmit(ev: React.FormEvent) {
     ev.preventDefault()
-    if (!file) { toast.error('Select a CSV file first'); return }
-    importMutation.mutate(file)
+    if (!text.trim() && !file) { toast.error('Paste CSV text or select a file'); return }
+    const fileToSend = file ?? new File([text.trim()], 'import.csv', { type: 'text/csv' })
+    importMutation.mutate(fileToSend)
   }
+
+  const hasInput = text.trim().length > 0 || file !== null
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Import Packaging Entries</DialogTitle>
         </DialogHeader>
@@ -93,38 +98,56 @@ function ImportDialog({ open, onClose, onSuccess }: { open: boolean; onClose: ()
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Upload a CSV with columns: <strong>Type, Count, Volume, Style</strong>. Count and Style are optional.
-              Types, Volumes, and Styles will be created automatically if they don't already exist.
+              Columns: <strong>Type, Count, Volume, Style</strong> — Count and Style are optional.
+              New types, volumes, and styles are created automatically.
             </p>
-            <a
-              href={getPackagingImportTemplateUrl()}
-              download="packaging-import-template.csv"
-              className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline"
-            >
-              <Download className="h-3 w-3" />
-              Download CSV template
-            </a>
-            <div
-              className="rounded-md border-2 border-dashed border-muted-foreground/30 p-6 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
-              onClick={() => fileRef.current?.click()}
-            >
-              <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50" />
-              {file ? (
-                <p className="text-sm font-medium">{file.name}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">Click to select a CSV file</p>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={e => setFile(e.target.files?.[0] ?? null)}
+
+            {/* Paste area */}
+            <div className="space-y-1.5">
+              <Label>Paste CSV</Label>
+              <textarea
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-y min-h-[140px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                placeholder={"Type,Count,Volume,Style\nCase,4x6,16oz,Can\nKeg,,30L,\nSingle,,750ml,Bottle"}
+                value={text}
+                onChange={e => { setText(e.target.value); setFile(null) }}
               />
             </div>
+
+            {/* File upload alternative */}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or upload a file</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button" size="sm" variant="outline"
+                onClick={() => fileRef.current?.click()}
+                className="shrink-0"
+              >
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                {file ? file.name : 'Choose file'}
+              </Button>
+              {file && (
+                <button type="button" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => setFile(null)}>
+                  remove
+                </button>
+              )}
+              <a
+                href={getPackagingImportTemplateUrl()}
+                download="packaging-import-template.csv"
+                className="ml-auto inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+              >
+                <Download className="h-3 w-3" />
+                Template
+              </a>
+              <input ref={fileRef} type="file" accept=".csv" className="hidden"
+                onChange={e => { setFile(e.target.files?.[0] ?? null); setText('') }} />
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-              <Button type="submit" disabled={!file || importMutation.isPending}>
+              <Button type="submit" disabled={!hasInput || importMutation.isPending}>
                 {importMutation.isPending ? 'Importing...' : 'Import'}
               </Button>
             </DialogFooter>
