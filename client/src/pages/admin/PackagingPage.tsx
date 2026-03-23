@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,15 +13,19 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
-import { Pencil, Trash2, Plus, Package } from 'lucide-react'
+import { Pencil, Trash2, Plus, Package, Upload, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getPackagingTypes, createPackagingType, updatePackagingType, deletePackagingType,
   getPackagingVolumes, createPackagingVolume, updatePackagingVolume, deletePackagingVolume,
   getPackagingStyles, createPackagingStyle, updatePackagingStyle, deletePackagingStyle,
   getPackagingEntries, createPackagingEntry, updatePackagingEntry, deletePackagingEntry,
+  importPackagingEntries, getPackagingImportTemplateUrl,
   type PackagingTypeDto, type PackagingVolumeDto, type PackagingStyleDto, type PackagingEntryDto,
 } from '@/api/packaging'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 
 // ── Label preview helper ──────────────────────────────────────────────────────
 
@@ -33,11 +37,110 @@ function computeLabel(typeName: string, count: string, volumeName: string, style
   return parts.join(' - ')
 }
 
+// ── Import dialog ─────────────────────────────────────────────────────────────
+
+function ImportDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [result, setResult] = useState<{ created: number; skipped: number; errors: string[] } | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const importMutation = useMutation({
+    mutationFn: importPackagingEntries,
+    onSuccess: (data) => {
+      setResult(data)
+      onSuccess()
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Import failed'),
+  })
+
+  function handleClose() {
+    setFile(null)
+    setResult(null)
+    onClose()
+  }
+
+  function handleSubmit(ev: React.FormEvent) {
+    ev.preventDefault()
+    if (!file) { toast.error('Select a CSV file first'); return }
+    importMutation.mutate(file)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Import Packaging Entries</DialogTitle>
+        </DialogHeader>
+
+        {result ? (
+          <div className="space-y-3 py-2">
+            <div className="rounded-md bg-muted/40 p-4 space-y-1 text-sm">
+              <p><span className="font-medium text-green-700">{result.created}</span> entries created</p>
+              <p><span className="font-medium text-muted-foreground">{result.skipped}</span> duplicates skipped</p>
+            </div>
+            {result.errors.length > 0 && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+                <p className="text-xs font-medium text-destructive">Errors ({result.errors.length})</p>
+                {result.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-destructive">{e}</p>
+                ))}
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={handleClose}>Done</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Upload a CSV with columns: <strong>Type, Count, Volume, Style</strong>. Count and Style are optional.
+              Types, Volumes, and Styles will be created automatically if they don't already exist.
+            </p>
+            <a
+              href={getPackagingImportTemplateUrl()}
+              download="packaging-import-template.csv"
+              className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline"
+            >
+              <Download className="h-3 w-3" />
+              Download CSV template
+            </a>
+            <div
+              className="rounded-md border-2 border-dashed border-muted-foreground/30 p-6 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50" />
+              {file ? (
+                <p className="text-sm font-medium">{file.name}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Click to select a CSV file</p>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={e => setFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button type="submit" disabled={!file || importMutation.isPending}>
+                {importMutation.isPending ? 'Importing...' : 'Import'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Entries tab ───────────────────────────────────────────────────────────────
 
 function EntriesTab() {
   const qc = useQueryClient()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<PackagingEntryDto | null>(null)
 
   const { data: entries = [], isLoading } = useQuery({ queryKey: ['packaging-entries'], queryFn: getPackagingEntries })
@@ -151,10 +254,16 @@ function EntriesTab() {
         <p className="text-sm text-muted-foreground">
           Composed packaging configurations used in forms and product lists.
         </p>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          New Entry
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-1.5" />
+            Import CSV
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Entry
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -212,6 +321,17 @@ function EntriesTab() {
           </table>
         </div>
       )}
+
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: ['packaging-entries'] })
+          qc.invalidateQueries({ queryKey: ['packaging-types'] })
+          qc.invalidateQueries({ queryKey: ['packaging-volumes'] })
+          qc.invalidateQueries({ queryKey: ['packaging-styles'] })
+        }}
+      />
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
@@ -586,7 +706,7 @@ export default function PackagingPage() {
       <Tabs defaultValue="entries">
         <TabsList>
           <TabsTrigger value="entries">Entries</TabsTrigger>
-          <TabsTrigger value="components">Types, Volumes &amp; Styles</TabsTrigger>
+          <TabsTrigger value="components">Categories</TabsTrigger>
         </TabsList>
         <TabsContent value="entries" className="mt-4">
           <EntriesTab />

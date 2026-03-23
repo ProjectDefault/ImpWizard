@@ -382,4 +382,167 @@ public class PackagingController(AppDbContext db, IAuditService audit) : Control
         await _audit.LogAsync(User, "packaging_entry.deleted", "PackagingEntry", entry.Id.ToString(), $"Entry #{id}");
         return NoContent();
     }
+
+    // ── Import ────────────────────────────────────────────────────────────────
+
+    public record ImportResult(int Created, int Skipped, List<string> Errors);
+
+    /// <summary>
+    /// Download a CSV template for bulk import.
+    /// </summary>
+    [HttpGet("import/template")]
+    public IActionResult GetImportTemplate()
+    {
+        var csv = "Type,Count,Volume,Style\nCase,4x6,16oz,Can\nKeg,,30L,\nSingle,,750ml,Bottle\n";
+        return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv", "packaging-import-template.csv");
+    }
+
+    /// <summary>
+    /// Import entries from a CSV file. Columns: Type, Count (optional), Volume, Style (optional).
+    /// Types, Volumes, and Styles are created automatically if they don't exist.
+    /// Duplicate entries (same type+count+volume+style) are skipped.
+    /// </summary>
+    [HttpPost("import")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ImportEntries(IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "No file provided." });
+
+        List<string> errors = [];
+        int created = 0, skipped = 0;
+
+        using var reader = new System.IO.StreamReader(file.OpenReadStream());
+        var headerLine = await reader.ReadLineAsync();
+        if (headerLine is null)
+            return BadRequest(new { message = "File is empty." });
+
+        // Validate header (case-insensitive)
+        var headers = headerLine.Split(',').Select(h => h.Trim().ToLowerInvariant()).ToArray();
+        int typeIdx = Array.IndexOf(headers, "type");
+        int countIdx = Array.IndexOf(headers, "count");
+        int volumeIdx = Array.IndexOf(headers, "volume");
+        int styleIdx = Array.IndexOf(headers, "style");
+
+        if (typeIdx < 0 || volumeIdx < 0)
+            return BadRequest(new { message = "CSV must have at least 'Type' and 'Volume' columns." });
+
+        // Load existing data into memory to minimize round-trips
+        var existingTypes = await _db.PackagingTypes.ToListAsync();
+        var existingVolumes = await _db.PackagingVolumes.ToListAsync();
+        var existingStyles = await _db.PackagingStyles.ToListAsync();
+        var existingEntries = await _db.PackagingEntries.ToListAsync();
+
+        int rowNum = 1;
+        string? line;
+        while ((line = await reader.ReadLineAsync()) is not null)
+        {
+            rowNum++;
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var cols = line.Split(',');
+            if (cols.Length <= typeIdx || cols.Length <= volumeIdx)
+            {
+                errors.Add($"Row {rowNum}: not enough columns.");
+                continue;
+            }
+
+            var typeName = cols[typeIdx].Trim();
+            var volumeName = cols[volumeIdx].Trim();
+            var countVal = countIdx >= 0 && countIdx < cols.Length ? cols[countIdx].Trim() : "";
+            var styleName = styleIdx >= 0 && styleIdx < cols.Length ? cols[styleIdx].Trim() : "";
+
+            if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(volumeName))
+            {
+                errors.Add($"Row {rowNum}: Type and Volume are required.");
+                continue;
+            }
+
+            // Find or create Type
+            var type = existingTypes.FirstOrDefault(t => t.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
+            if (type is null)
+            {
+                type = new PackagingType
+                {
+                    Name = typeName,
+                    HasCount = !string.IsNullOrEmpty(countVal),
+                    HasStyle = !string.IsNullOrEmpty(styleName),
+                    SortOrder = existingTypes.Count,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                };
+                _db.PackagingTypes.Add(type);
+                await _db.SaveChangesAsync();
+                existingTypes.Add(type);
+            }
+
+            // Find or create Volume
+            var volume = existingVolumes.FirstOrDefault(v => v.Name.Equals(volumeName, StringComparison.OrdinalIgnoreCase));
+            if (volume is null)
+            {
+                volume = new PackagingVolume
+                {
+                    Name = volumeName,
+                    SortOrder = existingVolumes.Count,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                };
+                _db.PackagingVolumes.Add(volume);
+                await _db.SaveChangesAsync();
+                existingVolumes.Add(volume);
+            }
+
+            // Find or create Style (if provided)
+            PackagingStyle? style = null;
+            if (!string.IsNullOrEmpty(styleName))
+            {
+                style = existingStyles.FirstOrDefault(s => s.Name.Equals(styleName, StringComparison.OrdinalIgnoreCase));
+                if (style is null)
+                {
+                    style = new PackagingStyle
+                    {
+                        Name = styleName,
+                        SortOrder = existingStyles.Count,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                    };
+                    _db.PackagingStyles.Add(style);
+                    await _db.SaveChangesAsync();
+                    existingStyles.Add(style);
+                }
+            }
+
+            // Check for duplicate entry
+            var countNorm = string.IsNullOrEmpty(countVal) ? null : countVal;
+            var isDuplicate = existingEntries.Any(e =>
+                e.PackagingTypeId == type.Id &&
+                e.PackagingVolumeId == volume.Id &&
+                (e.PackagingStyleId == style?.Id) &&
+                string.Equals(e.Count, countNorm, StringComparison.OrdinalIgnoreCase));
+
+            if (isDuplicate)
+            {
+                skipped++;
+                continue;
+            }
+
+            var entry = new PackagingEntry
+            {
+                PackagingTypeId = type.Id,
+                Count = countNorm,
+                PackagingVolumeId = volume.Id,
+                PackagingStyleId = style?.Id,
+                SortOrder = existingEntries.Count,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+            _db.PackagingEntries.Add(entry);
+            await _db.SaveChangesAsync();
+            existingEntries.Add(entry);
+            created++;
+        }
+
+        await _audit.LogAsync(User, "packaging.imported", "PackagingEntry", null, $"{created} entries imported");
+        return Ok(new ImportResult(created, skipped, errors));
+    }
 }

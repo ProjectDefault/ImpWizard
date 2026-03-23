@@ -140,3 +140,13 @@ export const updatePackagingEntry = (id: number, p: UpdatePackagingEntryPayload)
   apiClient.put<PackagingEntryDto>(`/packaging/entries/${id}`, p).then(r => r.data)
 export const deletePackagingEntry = (id: number) =>
   apiClient.delete(`/packaging/entries/${id}`)
+
+export interface ImportResult { created: number; skipped: number; errors: string[] }
+export const importPackagingEntries = (file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return apiClient.post<ImportResult>('/packaging/import', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data)
+}
+export const getPackagingImportTemplateUrl = () => '/api/packaging/import/template'
