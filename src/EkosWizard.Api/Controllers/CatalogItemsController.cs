@@ -27,7 +27,9 @@ public class CatalogItemsController : ControllerBase
     public record CategoryRefDto(int Id, string Name);
 
     public record CatalogItemListDto(
-        int Id, string ItemName, bool IsActive, int SortOrder,
+        int Id, string ItemName, string DisplayLabel, bool IsActive, int SortOrder,
+        int? CatalogItemTypeId, string? CatalogItemTypeName,
+        int? CatalogItemSubTypeId, string? CatalogItemSubTypeName,
         string? Supplier, string? Vendor, string? VendorItemNumber,
         string? PurchaseUomDescription, decimal? PurchaseAmountPerUom,
         string? PurchaseUomName, string? PurchaseUomAbbreviation, string? UomType,
@@ -36,7 +38,9 @@ public class CatalogItemsController : ControllerBase
         IEnumerable<string> Categories);
 
     public record CatalogItemDetailDto(
-        int Id, string ItemName, bool IsActive, int SortOrder,
+        int Id, string ItemName, string DisplayLabel, bool IsActive, int SortOrder,
+        int? CatalogItemTypeId, string? CatalogItemTypeName,
+        int? CatalogItemSubTypeId, string? CatalogItemSubTypeName,
         int? ProgramId, string? ProgramName, string? ProgramColor,
         int? SupplierId, string? SupplierName,
         int? VendorId, string? VendorName,
@@ -57,6 +61,8 @@ public class CatalogItemsController : ControllerBase
         string? PurchaseUomDescription,
         decimal? PurchaseAmountPerUom,
         int? PurchaseUomId,
+        int? CatalogItemTypeId,
+        int? CatalogItemSubTypeId,
         int SortOrder = 0);
 
     public record UpdateCatalogItemRequest(
@@ -69,6 +75,8 @@ public class CatalogItemsController : ControllerBase
         string? PurchaseUomDescription,
         decimal? PurchaseAmountPerUom,
         int? PurchaseUomId,
+        int? CatalogItemTypeId,
+        int? CatalogItemSubTypeId,
         int? SortOrder);
 
     public record BulkUpdateRequest(
@@ -82,8 +90,15 @@ public class CatalogItemsController : ControllerBase
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private static string ComputeDisplayLabel(CatalogItem ci) =>
+        ci.CatalogItemSubType is not null
+            ? $"{ci.ItemName}: {ci.CatalogItemSubType.Name}"
+            : ci.ItemName;
+
     private static CatalogItemListDto ToListDto(CatalogItem ci) => new(
-        ci.Id, ci.ItemName, ci.IsActive, ci.SortOrder,
+        ci.Id, ci.ItemName, ComputeDisplayLabel(ci), ci.IsActive, ci.SortOrder,
+        ci.CatalogItemTypeId, ci.CatalogItemType?.Name,
+        ci.CatalogItemSubTypeId, ci.CatalogItemSubType?.Name,
         ci.Supplier?.Name,
         ci.Vendor?.Name,
         ci.VendorItemNumber,
@@ -98,7 +113,9 @@ public class CatalogItemsController : ControllerBase
         ci.Categories.Select(c => c.Name));
 
     private static CatalogItemDetailDto ToDetailDto(CatalogItem ci) => new(
-        ci.Id, ci.ItemName, ci.IsActive, ci.SortOrder,
+        ci.Id, ci.ItemName, ComputeDisplayLabel(ci), ci.IsActive, ci.SortOrder,
+        ci.CatalogItemTypeId, ci.CatalogItemType?.Name,
+        ci.CatalogItemSubTypeId, ci.CatalogItemSubType?.Name,
         ci.ProgramId, ci.Program?.Name, ci.Program?.Color,
         ci.SupplierId, ci.Supplier?.Name,
         ci.VendorId, ci.Vendor?.Name,
@@ -115,7 +132,9 @@ public class CatalogItemsController : ControllerBase
             .Include(ci => ci.Vendor)
             .Include(ci => ci.PurchaseUom)
             .Include(ci => ci.ProductTypes)
-            .Include(ci => ci.Categories);
+            .Include(ci => ci.Categories)
+            .Include(ci => ci.CatalogItemType)
+            .Include(ci => ci.CatalogItemSubType);
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
 
@@ -127,6 +146,8 @@ public class CatalogItemsController : ControllerBase
         [FromQuery] int? supplierId,
         [FromQuery] int? vendorId,
         [FromQuery] int? productTypeId,
+        [FromQuery] int? catalogItemTypeId,
+        [FromQuery] int? catalogItemSubTypeId,
         [FromQuery] bool? isActive,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
@@ -152,6 +173,10 @@ public class CatalogItemsController : ControllerBase
             query = query.Where(ci => ci.VendorId == vendorId.Value);
         if (productTypeId.HasValue)
             query = query.Where(ci => ci.ProductTypes.Any(pt => pt.Id == productTypeId.Value));
+        if (catalogItemTypeId.HasValue)
+            query = query.Where(ci => ci.CatalogItemTypeId == catalogItemTypeId.Value);
+        if (catalogItemSubTypeId.HasValue)
+            query = query.Where(ci => ci.CatalogItemSubTypeId == catalogItemSubTypeId.Value);
 
         var totalCount = await query.CountAsync();
         var items = await query
@@ -187,6 +212,8 @@ public class CatalogItemsController : ControllerBase
             PurchaseUomDescription = req.PurchaseUomDescription?.Trim(),
             PurchaseAmountPerUom = req.PurchaseAmountPerUom,
             PurchaseUomId = req.PurchaseUomId == 0 ? null : req.PurchaseUomId,
+            CatalogItemTypeId = req.CatalogItemTypeId == 0 ? null : req.CatalogItemTypeId,
+            CatalogItemSubTypeId = req.CatalogItemSubTypeId == 0 ? null : req.CatalogItemSubTypeId,
             SortOrder = req.SortOrder,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -215,6 +242,8 @@ public class CatalogItemsController : ControllerBase
         if (req.PurchaseUomDescription is not null) ci.PurchaseUomDescription = req.PurchaseUomDescription.Trim();
         if (req.PurchaseAmountPerUom is not null) ci.PurchaseAmountPerUom = req.PurchaseAmountPerUom;
         if (req.PurchaseUomId is not null) ci.PurchaseUomId = req.PurchaseUomId == 0 ? null : req.PurchaseUomId;
+        if (req.CatalogItemTypeId is not null) ci.CatalogItemTypeId = req.CatalogItemTypeId == 0 ? null : req.CatalogItemTypeId;
+        if (req.CatalogItemSubTypeId is not null) ci.CatalogItemSubTypeId = req.CatalogItemSubTypeId == 0 ? null : req.CatalogItemSubTypeId;
         if (req.SortOrder is not null) ci.SortOrder = req.SortOrder.Value;
         ci.UpdatedAt = DateTime.UtcNow;
 
@@ -335,7 +364,9 @@ public class CatalogItemsController : ControllerBase
         bool? IsActive,
         int? SortOrder,
         IEnumerable<string>? ProductTypeNames,
-        IEnumerable<string>? CategoryNames);
+        IEnumerable<string>? CategoryNames,
+        string? CatalogItemTypeName,
+        string? CatalogItemSubTypeName);
 
     public record ImportResultDto(string ItemName, string Action, IEnumerable<string> Warnings);
     public record ImportSummaryDto(IEnumerable<ImportResultDto> Results);
@@ -350,6 +381,7 @@ public class CatalogItemsController : ControllerBase
         var allUoms = await _db.UnitsOfMeasure.ToListAsync();
         var allProductTypes = await _db.ProductTypes.ToListAsync();
         var allCategories = await _db.ItemCategories.ToListAsync();
+        var allCatalogItemTypes = await _db.CatalogItemTypes.Include(t => t.SubTypes).ToListAsync();
 
         var results = new List<ImportResultDto>();
 
@@ -363,6 +395,24 @@ public class CatalogItemsController : ControllerBase
             int? supplierId = ResolveByName(allSuppliers, spec.SupplierName, s => s.Name, s => s.Id, warnings, "Supplier");
             int? vendorId = ResolveByName(allVendors, spec.VendorName, v => v.Name, v => v.Id, warnings, "Vendor");
             int? uomId = ResolveByName(allUoms, spec.PurchaseUomName, u => u.Name, u => u.Id, warnings, "PurchaseUom");
+
+            int? catalogItemTypeId = null;
+            int? catalogItemSubTypeId = null;
+            if (!string.IsNullOrWhiteSpace(spec.CatalogItemTypeName))
+            {
+                var ciType = allCatalogItemTypes.FirstOrDefault(t => t.Name.Equals(spec.CatalogItemTypeName.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (ciType is null) warnings.Add($"CatalogItemType '{spec.CatalogItemTypeName}' not found — skipped.");
+                else
+                {
+                    catalogItemTypeId = ciType.Id;
+                    if (!string.IsNullOrWhiteSpace(spec.CatalogItemSubTypeName))
+                    {
+                        var ciSubType = ciType.SubTypes.FirstOrDefault(s => s.Name.Equals(spec.CatalogItemSubTypeName.Trim(), StringComparison.OrdinalIgnoreCase));
+                        if (ciSubType is null) warnings.Add($"CatalogItemSubType '{spec.CatalogItemSubTypeName}' not found under type '{ciType.Name}' — skipped.");
+                        else catalogItemSubTypeId = ciSubType.Id;
+                    }
+                }
+            }
 
             var existing = await _db.CatalogItems
                 .Include(ci => ci.ProductTypes)
@@ -382,6 +432,8 @@ public class CatalogItemsController : ControllerBase
                     PurchaseUomDescription = spec.PurchaseUomDescription?.Trim(),
                     PurchaseAmountPerUom = spec.PurchaseAmountPerUom,
                     PurchaseUomId = uomId,
+                    CatalogItemTypeId = catalogItemTypeId,
+                    CatalogItemSubTypeId = catalogItemSubTypeId,
                     IsActive = spec.IsActive ?? true,
                     SortOrder = spec.SortOrder ?? 0,
                     CreatedAt = DateTime.UtcNow,
@@ -419,6 +471,8 @@ public class CatalogItemsController : ControllerBase
                 if (spec.PurchaseUomDescription is not null) existing.PurchaseUomDescription = spec.PurchaseUomDescription.Trim();
                 if (spec.PurchaseAmountPerUom is not null) existing.PurchaseAmountPerUom = spec.PurchaseAmountPerUom;
                 if (uomId is not null) existing.PurchaseUomId = uomId;
+                if (catalogItemTypeId is not null) existing.CatalogItemTypeId = catalogItemTypeId;
+                if (catalogItemSubTypeId is not null) existing.CatalogItemSubTypeId = catalogItemSubTypeId;
                 if (spec.IsActive is not null) existing.IsActive = spec.IsActive.Value;
                 if (spec.SortOrder is not null) existing.SortOrder = spec.SortOrder.Value;
                 existing.UpdatedAt = DateTime.UtcNow;
@@ -495,13 +549,15 @@ public class CatalogItemsController : ControllerBase
         var items = await query.OrderBy(ci => ci.ItemName).ToListAsync();
 
         var sb = new StringBuilder();
-        sb.AppendLine("ItemName,Categories,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,UomType,Program,IsActive,SortOrder,ProductTypes");
+        sb.AppendLine("ItemName,ItemType,ItemSubType,Categories,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,UomType,Program,IsActive,SortOrder,ProductTypes");
         foreach (var ci in items)
         {
             var categoryNames = string.Join("|", ci.Categories.Select(c => c.Name));
             var productTypeNames = string.Join("|", ci.ProductTypes.Select(pt => pt.Name));
             sb.AppendLine(string.Join(",",
                 CsvEscape(ci.ItemName),
+                CsvEscape(ci.CatalogItemType?.Name),
+                CsvEscape(ci.CatalogItemSubType?.Name),
                 CsvEscape(categoryNames),
                 CsvEscape(ci.Supplier?.Name),
                 CsvEscape(ci.Vendor?.Name),

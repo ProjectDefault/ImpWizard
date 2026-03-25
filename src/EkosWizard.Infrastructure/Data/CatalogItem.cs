@@ -30,4 +30,10 @@ public class CatalogItem
 
     public ICollection<ProductType> ProductTypes { get; set; } = [];
     public ICollection<ItemCategory> Categories { get; set; } = [];
+
+    public int? CatalogItemTypeId { get; set; }
+    public CatalogItemType? CatalogItemType { get; set; }
+
+    public int? CatalogItemSubTypeId { get; set; }
+    public CatalogItemSubType? CatalogItemSubType { get; set; }
 }

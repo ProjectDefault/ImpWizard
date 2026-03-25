@@ -34,6 +34,7 @@ import ProjectDetailPage from '@/pages/admin/ProjectDetailPage'
 import BulkSubmissionReviewPage from '@/pages/admin/BulkSubmissionReviewPage'
 import ProductManagementPage from '@/pages/admin/ProductManagementPage'
 import PackagingPage from '@/pages/admin/PackagingPage'
+import CatalogItemTypesPage from '@/pages/admin/CatalogItemTypesPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 
 import SuperCustomerLayout from '@/components/layout/SuperCustomerLayout'
@@ -96,6 +97,7 @@ export default function App() {
               <Route path="settings/import-templates" element={<ImportTemplatesPage />} />
               <Route path="settings/form-change-review" element={<FormImpactReviewPage />} />
               <Route path="catalog/ingredient-categories" element={<ItemCategoriesPage />} />
+              <Route path="catalog/ingredient-types" element={<CatalogItemTypesPage />} />
               <Route path="catalog/packaging" element={<PackagingPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="audit" element={<AuditLogPage />} />

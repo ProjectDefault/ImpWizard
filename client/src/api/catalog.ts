@@ -13,8 +13,13 @@ export interface CategoryRefDto {
 export interface CatalogItemListDto {
   id: number
   itemName: string
+  displayLabel: string
   isActive: boolean
   sortOrder: number
+  catalogItemTypeId: number | null
+  catalogItemTypeName: string | null
+  catalogItemSubTypeId: number | null
+  catalogItemSubTypeName: string | null
   supplier: string | null
   vendor: string | null
   vendorItemNumber: string | null
@@ -32,8 +37,13 @@ export interface CatalogItemListDto {
 export interface CatalogItemDetailDto {
   id: number
   itemName: string
+  displayLabel: string
   isActive: boolean
   sortOrder: number
+  catalogItemTypeId: number | null
+  catalogItemTypeName: string | null
+  catalogItemSubTypeId: number | null
+  catalogItemSubTypeName: string | null
   programId: number | null
   programName: string | null
   programColor: string | null
@@ -66,6 +76,8 @@ export interface CatalogFilters {
   supplierId?: number
   vendorId?: number
   productTypeId?: number
+  catalogItemTypeId?: number
+  catalogItemSubTypeId?: number
   isActive?: boolean
   page?: number
   pageSize?: number
@@ -80,6 +92,8 @@ export interface CreateCatalogItemPayload {
   purchaseUomDescription?: string
   purchaseAmountPerUom?: number | null
   purchaseUomId?: number | null
+  catalogItemTypeId?: number | null
+  catalogItemSubTypeId?: number | null
   sortOrder?: number
 }
 
@@ -93,6 +107,8 @@ export interface UpdateCatalogItemPayload {
   purchaseUomDescription?: string
   purchaseAmountPerUom?: number | null
   purchaseUomId?: number | null
+  catalogItemTypeId?: number | null
+  catalogItemSubTypeId?: number | null
   sortOrder?: number
 }
 
@@ -119,6 +135,8 @@ export interface ImportItemSpec {
   sortOrder?: number
   productTypeNames?: string[]
   categoryNames?: string[]
+  catalogItemTypeName?: string
+  catalogItemSubTypeName?: string
 }
 
 export interface ImportResultDto {
@@ -139,6 +157,8 @@ export async function getCatalogItems(filters: CatalogFilters = {}): Promise<Pag
   if (filters.supplierId != null) params.supplierId = String(filters.supplierId)
   if (filters.vendorId != null) params.vendorId = String(filters.vendorId)
   if (filters.productTypeId != null) params.productTypeId = String(filters.productTypeId)
+  if (filters.catalogItemTypeId != null) params.catalogItemTypeId = String(filters.catalogItemTypeId)
+  if (filters.catalogItemSubTypeId != null) params.catalogItemSubTypeId = String(filters.catalogItemSubTypeId)
   if (filters.isActive != null) params.isActive = String(filters.isActive)
   if (filters.page != null) params.page = String(filters.page)
   if (filters.pageSize != null) params.pageSize = String(filters.pageSize)

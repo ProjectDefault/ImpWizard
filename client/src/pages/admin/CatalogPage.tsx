@@ -30,6 +30,7 @@ import { getVendors } from '@/api/vendors'
 import { getPrograms } from '@/api/programs'
 import { getProductTypes } from '@/api/productTypes'
 import { getUnitsOfMeasure } from '@/api/unitsOfMeasure'
+import { getCatalogItemTypes, type CatalogItemTypeDto } from '@/api/catalogItemTypes'
 
 const PAGE_SIZE = 50
 
@@ -67,12 +68,16 @@ function parseCatalogCsv(text: string): ImportItemSpec[] {
       isActive: obj['isactive'] !== 'false',
       productTypeNames: obj['producttypes'] ? obj['producttypes'].split('|').filter(Boolean) : undefined,
       categoryNames: obj['categories'] ? obj['categories'].split('|').filter(Boolean) : undefined,
+      catalogItemTypeName: obj['itemtype'] || obj['catalogitemtypename'] || undefined,
+      catalogItemSubTypeName: obj['itemsubtype'] || obj['catalogitemsubtypename'] || undefined,
     } satisfies ImportItemSpec
   }).filter(s => s.itemName)
 }
 
 const CATALOG_COLUMNS = [
   { name: 'ItemName',                required: true,  description: 'Item name',                      example: 'Centennial Hops' },
+  { name: 'ItemType',                required: false, description: 'Ingredient type name',            example: 'Hops' },
+  { name: 'ItemSubType',             required: false, description: 'Ingredient sub-type name',        example: 'T-90 Pellet' },
   { name: 'Program',                 required: false, description: 'Program name',                   example: 'Brewing' },
   { name: 'Supplier',                required: false, description: 'Supplier name',                  example: 'Hop Farm Co' },
   { name: 'Vendor',                  required: false, description: 'Vendor name',                    example: 'Distributor Inc' },
@@ -85,9 +90,9 @@ const CATALOG_COLUMNS = [
 ]
 
 const TEMPLATE_CSV =
-  'ItemName,Program,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,ProductTypes,Categories\n' +
-  'Centennial Hops,Brewing,Hop Farm Co,Distributor Inc,HOP-001,Box of 44lb,44,lb,Hops,Ingredients\n' +
-  'Pale Malt,Brewing,Malt House,,MALT-002,,55,lb,Grain,\n'
+  'ItemName,ItemType,ItemSubType,Program,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,ProductTypes,Categories\n' +
+  'Centennial Hops,Hops,T-90 Pellet,Brewing,Hop Farm Co,Distributor Inc,HOP-001,Box of 44lb,44,lb,Hops,Ingredients\n' +
+  'Pale Malt,Grain,,Brewing,Malt House,,MALT-002,,55,lb,Grain,\n'
 
 // ── Catalog Import Dialog ─────────────────────────────────────────────────────
 
@@ -277,6 +282,8 @@ interface ItemForm {
   purchaseUomDescription: string
   purchaseAmountPerUom: string
   purchaseUomId: number | null
+  catalogItemTypeId: number | null
+  catalogItemSubTypeId: number | null
   isActive: boolean
   sortOrder: number
   productTypeIds: number[]
@@ -292,6 +299,8 @@ const emptyForm = (): ItemForm => ({
   purchaseUomDescription: '',
   purchaseAmountPerUom: '',
   purchaseUomId: null,
+  catalogItemTypeId: null,
+  catalogItemSubTypeId: null,
   isActive: true,
   sortOrder: 0,
   productTypeIds: [],
@@ -308,6 +317,7 @@ export default function CatalogPage() {
   const [supplierFilter, setSupplierFilter] = useState<number | null>(null)
   const [vendorFilter, setVendorFilter] = useState<number | null>(null)
   const [productTypeFilter, setProductTypeFilter] = useState<number | null>(null)
+  const [catalogItemTypeFilter, setCatalogItemTypeFilter] = useState<number | null>(null)
   const [showInactive, setShowInactive] = useState(false)
   const [page, setPage] = useState(1)
 
@@ -340,6 +350,7 @@ export default function CatalogPage() {
     supplierId: supplierFilter ?? undefined,
     vendorId: vendorFilter ?? undefined,
     productTypeId: productTypeFilter ?? undefined,
+    catalogItemTypeId: catalogItemTypeFilter ?? undefined,
     isActive: showInactive ? undefined : true,
     page,
     pageSize: PAGE_SIZE,
@@ -357,6 +368,7 @@ export default function CatalogPage() {
   const { data: programs } = useQuery({ queryKey: ['programs'], queryFn: getPrograms })
   const { data: productTypes } = useQuery({ queryKey: ['product-types'], queryFn: getProductTypes })
   const { data: uoms } = useQuery({ queryKey: ['units-of-measure'], queryFn: getUnitsOfMeasure })
+  const { data: catalogItemTypes } = useQuery({ queryKey: ['catalog-item-types'], queryFn: getCatalogItemTypes })
 
   const { data: editDetail } = useQuery<CatalogItemDetailDto>({
     queryKey: ['catalog', editItemId],
@@ -377,6 +389,8 @@ export default function CatalogPage() {
       purchaseUomDescription: editDetail.purchaseUomDescription ?? '',
       purchaseAmountPerUom: editDetail.purchaseAmountPerUom?.toString() ?? '',
       purchaseUomId: editDetail.purchaseUomId,
+      catalogItemTypeId: editDetail.catalogItemTypeId,
+      catalogItemSubTypeId: editDetail.catalogItemSubTypeId,
       isActive: editDetail.isActive,
       sortOrder: editDetail.sortOrder,
       productTypeIds: editDetail.productTypes.map(pt => pt.id),
@@ -398,6 +412,8 @@ export default function CatalogPage() {
         purchaseUomDescription: f.purchaseUomDescription || undefined,
         purchaseAmountPerUom: f.purchaseAmountPerUom ? parseFloat(f.purchaseAmountPerUom) : null,
         purchaseUomId: f.purchaseUomId,
+        catalogItemTypeId: f.catalogItemTypeId,
+        catalogItemSubTypeId: f.catalogItemSubTypeId,
         sortOrder: f.sortOrder,
       }
       const item = await createCatalogItem(payload)
@@ -421,6 +437,8 @@ export default function CatalogPage() {
         purchaseUomDescription: f.purchaseUomDescription || undefined,
         purchaseAmountPerUom: f.purchaseAmountPerUom ? parseFloat(f.purchaseAmountPerUom) : null,
         purchaseUomId: f.purchaseUomId,
+        catalogItemTypeId: f.catalogItemTypeId,
+        catalogItemSubTypeId: f.catalogItemSubTypeId,
         sortOrder: f.sortOrder,
       }
       await updateCatalogItem(id, payload)
@@ -488,6 +506,7 @@ export default function CatalogPage() {
   const resetFilters = () => {
     setSearch(''); setProgramFilter(null); setCategoryFilter(null)
     setSupplierFilter(null); setVendorFilter(null); setProductTypeFilter(null)
+    setCatalogItemTypeFilter(null)
     setShowInactive(false); setPage(1)
   }
 
@@ -535,7 +554,7 @@ export default function CatalogPage() {
     }
   }
 
-  const activeFiltersCount = [programFilter, categoryFilter, supplierFilter, vendorFilter, productTypeFilter, showInactive ? 'inactive' : null, search].filter(Boolean).length
+  const activeFiltersCount = [programFilter, categoryFilter, supplierFilter, vendorFilter, productTypeFilter, catalogItemTypeFilter, showInactive ? 'inactive' : null, search].filter(Boolean).length
 
   return (
     <div className="flex flex-col h-full p-6 gap-4">
@@ -608,6 +627,14 @@ export default function CatalogPage() {
           </SelectContent>
         </Select>
 
+        <Select value={catalogItemTypeFilter?.toString() ?? 'all'} onValueChange={v => { setCatalogItemTypeFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Ingredient Type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Ingredient Types</SelectItem>
+            {catalogItemTypes?.filter(t => t.isActive).map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
         <div className="flex items-center gap-1.5">
           <Checkbox id="inactive" checked={showInactive} onCheckedChange={v => { setShowInactive(!!v); setPage(1) }} />
           <label htmlFor="inactive" className="text-sm cursor-pointer">Show inactive</label>
@@ -639,6 +666,7 @@ export default function CatalogPage() {
                 />
               </TableHead>
               <TableHead>Item Name</TableHead>
+              <TableHead>Ingredient Type</TableHead>
               <TableHead>Categories</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Vendor</TableHead>
@@ -657,12 +685,12 @@ export default function CatalogPage() {
             {catalogLoading ? (
               [...Array(10)].map((_, i) => (
                 <TableRow key={i}>
-                  {[...Array(14)].map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
+                  {[...Array(15)].map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
                 </TableRow>
               ))
             ) : catalogData?.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={15} className="text-center text-muted-foreground py-8">
                   No items found. Try adjusting your filters or add a new item.
                 </TableCell>
               </TableRow>
@@ -672,7 +700,18 @@ export default function CatalogPage() {
                   <TableCell onClick={e => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(item.id)} onCheckedChange={() => toggleSelected(item.id)} />
                   </TableCell>
-                  <TableCell className="font-medium max-w-[200px] truncate">{item.itemName}</TableCell>
+                  <TableCell className="font-medium max-w-[200px] truncate">
+                    {item.displayLabel}
+                    {item.catalogItemSubTypeName && <div className="text-xs text-muted-foreground">{item.itemName}</div>}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {item.catalogItemTypeName ? (
+                      <div>
+                        <div>{item.catalogItemTypeName}</div>
+                        {item.catalogItemSubTypeName && <div className="text-xs text-muted-foreground">{item.catalogItemSubTypeName}</div>}
+                      </div>
+                    ) : '—'}
+                  </TableCell>
                   <TableCell className="text-sm max-w-[140px]">
                     {item.categories.length === 0 ? '—' : (
                       <div className="flex flex-wrap gap-1">
@@ -745,6 +784,58 @@ export default function CatalogPage() {
             <div className="space-y-1">
               <Label>Item Name *</Label>
               <Input value={form.itemName} onChange={e => setForm(f => ({ ...f, itemName: e.target.value }))} placeholder="Item name" required />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Ingredient Type</Label>
+                <Select
+                  value={form.catalogItemTypeId?.toString() ?? 'none'}
+                  onValueChange={v => setForm(f => ({
+                    ...f,
+                    catalogItemTypeId: v === 'none' ? null : Number(v),
+                    catalogItemSubTypeId: null,
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue>
+                      {form.catalogItemTypeId != null
+                        ? (catalogItemTypes?.find(t => t.id === form.catalogItemTypeId)?.name ?? `#${form.catalogItemTypeId}`)
+                        : <span className="text-muted-foreground">None</span>}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {catalogItemTypes?.filter(t => t.isActive).map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Sub-Type</Label>
+                {(() => {
+                  const selectedType: CatalogItemTypeDto | undefined = catalogItemTypes?.find(t => t.id === form.catalogItemTypeId)
+                  const subs = selectedType?.subTypes.filter(s => s.isActive) ?? []
+                  return (
+                    <Select
+                      value={form.catalogItemSubTypeId?.toString() ?? 'none'}
+                      onValueChange={v => setForm(f => ({ ...f, catalogItemSubTypeId: v === 'none' ? null : Number(v) }))}
+                      disabled={!form.catalogItemTypeId || subs.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue>
+                          {form.catalogItemSubTypeId != null
+                            ? (subs.find(s => s.id === form.catalogItemSubTypeId)?.name ?? `#${form.catalogItemSubTypeId}`)
+                            : <span className="text-muted-foreground">{!form.catalogItemTypeId ? 'Select type first' : subs.length === 0 ? 'No sub-types' : 'None'}</span>}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {subs.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )
+                })()}
+              </div>
             </div>
 
             <div className="space-y-1">

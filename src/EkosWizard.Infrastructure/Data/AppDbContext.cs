@@ -53,6 +53,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<PackagingVolume> PackagingVolumes => Set<PackagingVolume>();
     public DbSet<PackagingStyle> PackagingStyles => Set<PackagingStyle>();
     public DbSet<PackagingEntry> PackagingEntries => Set<PackagingEntry>();
+    public DbSet<CatalogItemType> CatalogItemTypes => Set<CatalogItemType>();
+    public DbSet<CatalogItemSubType> CatalogItemSubTypes => Set<CatalogItemSubType>();
+    public DbSet<CatalogItemTypeField> CatalogItemTypeFields => Set<CatalogItemTypeField>();
+    public DbSet<CatalogItemFieldValue> CatalogItemFieldValues => Set<CatalogItemFieldValue>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -257,6 +261,45 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
              .WithMany()
              .HasForeignKey(ci => ci.PurchaseUomId)
              .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasOne(ci => ci.CatalogItemType)
+             .WithMany()
+             .HasForeignKey(ci => ci.CatalogItemTypeId)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasOne(ci => ci.CatalogItemSubType)
+             .WithMany()
+             .HasForeignKey(ci => ci.CatalogItemSubTypeId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<CatalogItemSubType>(e =>
+        {
+            e.HasOne(s => s.CatalogItemType)
+             .WithMany(t => t.SubTypes)
+             .HasForeignKey(s => s.CatalogItemTypeId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<CatalogItemTypeField>(e =>
+        {
+            e.HasOne(f => f.CatalogItemType)
+             .WithMany(t => t.Fields)
+             .HasForeignKey(f => f.CatalogItemTypeId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<CatalogItemFieldValue>(e =>
+        {
+            e.HasOne(v => v.CatalogItem)
+             .WithMany()
+             .HasForeignKey(v => v.CatalogItemId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(v => v.CatalogItemTypeField)
+             .WithMany()
+             .HasForeignKey(v => v.CatalogItemTypeFieldId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ItemCategory>(e =>
