@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Search, Plus, Upload, Download, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Search, Plus, Upload, Download, ChevronLeft, ChevronRight, X, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
 import { createSupplier } from '@/api/suppliers'
 import { createVendor } from '@/api/vendors'
@@ -32,6 +32,239 @@ import { getProductTypes } from '@/api/productTypes'
 import { getUnitsOfMeasure } from '@/api/unitsOfMeasure'
 
 const PAGE_SIZE = 50
+
+// ── CSV helpers (used by import dialog) ──────────────────────────────────────
+
+function splitCsvLine(line: string): string[] {
+  const result: string[] = []
+  let cur = '', inQuote = false
+  for (const ch of line) {
+    if (ch === '"') { inQuote = !inQuote }
+    else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = '' }
+    else { cur += ch }
+  }
+  result.push(cur.trim())
+  return result
+}
+
+function parseCatalogCsv(text: string): ImportItemSpec[] {
+  const lines = text.trim().split('\n')
+  if (lines.length < 2) return []
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s/g, ''))
+  return lines.slice(1).map(line => {
+    const cols = splitCsvLine(line)
+    const obj: Record<string, string> = {}
+    headers.forEach((h, i) => { obj[h] = cols[i] ?? '' })
+    return {
+      itemName: obj['itemname'] ?? obj['name'] ?? '',
+      programName: obj['program'] || obj['programname'] || undefined,
+      supplierName: obj['supplier'] || obj['suppliername'] || undefined,
+      vendorName: obj['vendor'] || obj['vendorname'] || undefined,
+      vendorItemNumber: obj['vendoritemnumber'] || obj['vendorsku'] || undefined,
+      purchaseUomDescription: obj['purchaseuomdescription'] || undefined,
+      purchaseAmountPerUom: obj['purchaseamountperuom'] ? parseFloat(obj['purchaseamountperuom']) : undefined,
+      purchaseUomName: obj['purchaseuom'] || obj['uom'] || undefined,
+      isActive: obj['isactive'] !== 'false',
+      productTypeNames: obj['producttypes'] ? obj['producttypes'].split('|').filter(Boolean) : undefined,
+      categoryNames: obj['categories'] ? obj['categories'].split('|').filter(Boolean) : undefined,
+    } satisfies ImportItemSpec
+  }).filter(s => s.itemName)
+}
+
+const CATALOG_COLUMNS = [
+  { name: 'ItemName',                required: true,  description: 'Item name',                      example: 'Centennial Hops' },
+  { name: 'Program',                 required: false, description: 'Program name',                   example: 'Brewing' },
+  { name: 'Supplier',                required: false, description: 'Supplier name',                  example: 'Hop Farm Co' },
+  { name: 'Vendor',                  required: false, description: 'Vendor name',                    example: 'Distributor Inc' },
+  { name: 'VendorItemNumber',        required: false, description: 'Vendor SKU or item number',      example: 'HOP-001' },
+  { name: 'PurchaseUomDescription',  required: false, description: 'Description of purchase unit',  example: 'Box of 12' },
+  { name: 'PurchaseAmountPerUom',    required: false, description: 'Numeric amount per UOM',         example: '44' },
+  { name: 'PurchaseUom',             required: false, description: 'Unit of measure name',           example: 'lb' },
+  { name: 'ProductTypes',            required: false, description: 'Pipe-separated product types',  example: 'Hops|Adjunct' },
+  { name: 'Categories',              required: false, description: 'Pipe-separated categories',     example: 'Ingredients' },
+]
+
+const TEMPLATE_CSV =
+  'ItemName,Program,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,ProductTypes,Categories\n' +
+  'Centennial Hops,Brewing,Hop Farm Co,Distributor Inc,HOP-001,Box of 44lb,44,lb,Hops,Ingredients\n' +
+  'Pale Malt,Brewing,Malt House,,MALT-002,,55,lb,Grain,\n'
+
+// ── Catalog Import Dialog ─────────────────────────────────────────────────────
+
+function CatalogImportDialog({
+  open, onClose, onImport, isPending,
+}: {
+  open: boolean
+  onClose: () => void
+  onImport: (specs: ImportItemSpec[]) => void
+  isPending: boolean
+}) {
+  const [text, setText] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [parsed, setParsed] = useState<ImportItemSpec[] | null>(null)
+  const [parseError, setParseError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!open) { setText(''); setFile(null); setParsed(null); setParseError(null) }
+  }, [open])
+
+  function tryParse(raw: string) {
+    try {
+      const specs = parseCatalogCsv(raw)
+      setParsed(specs)
+      setParseError(null)
+    } catch (e: any) {
+      setParsed(null)
+      setParseError(e.message ?? 'Parse error')
+    }
+  }
+
+  function handleTextChange(val: string) {
+    setText(val)
+    setFile(null)
+    if (val.trim().split('\n').length >= 2) tryParse(val)
+    else { setParsed(null); setParseError(null) }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setFile(f)
+    setText('')
+    const reader = new FileReader()
+    reader.onload = ev => tryParse(ev.target?.result as string)
+    reader.readAsText(f)
+    e.target.value = ''
+  }
+
+  function handleSubmit(ev: React.FormEvent) {
+    ev.preventDefault()
+    if (!parsed || parsed.length === 0) { return }
+    onImport(parsed)
+  }
+
+  function copyTemplate() {
+    navigator.clipboard.writeText(TEMPLATE_CSV)
+    toast.success('Template copied to clipboard')
+  }
+
+  const hasInput = text.trim().length > 0 || file !== null
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import Item Catalog</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-1">
+          {/* Column reference */}
+          <div className="rounded-md border overflow-hidden">
+            <div className="bg-muted/40 px-3 py-1.5 flex items-center justify-between border-b">
+              <span className="text-xs font-medium">Column Reference</span>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                onClick={copyTemplate}
+              >
+                <FileSpreadsheet className="h-3 w-3" />
+                Copy template
+              </button>
+            </div>
+            <table className="w-full text-xs">
+              <thead className="bg-muted/20 border-b">
+                <tr>
+                  <th className="text-left px-3 py-1.5 font-medium">Column</th>
+                  <th className="text-left px-3 py-1.5 font-medium">Description</th>
+                  <th className="text-left px-3 py-1.5 font-medium hidden sm:table-cell">Example</th>
+                  <th className="text-center px-3 py-1.5 font-medium">Req</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CATALOG_COLUMNS.map(col => (
+                  <tr key={col.name} className="border-b last:border-b-0">
+                    <td className="px-3 py-1 font-mono font-medium">{col.name}</td>
+                    <td className="px-3 py-1 text-muted-foreground">{col.description}</td>
+                    <td className="px-3 py-1 text-muted-foreground hidden sm:table-cell font-mono">{col.example}</td>
+                    <td className="px-3 py-1 text-center">
+                      {col.required
+                        ? <span className="text-destructive font-bold">✓</span>
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="px-3 py-1.5 text-xs text-muted-foreground border-t bg-muted/10">
+              Multi-value columns (ProductTypes, Categories) use <span className="font-mono">|</span> as separator.
+              Header row is required. Column names are case-insensitive.
+            </div>
+          </div>
+
+          {/* Paste area */}
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Paste CSV</Label>
+              <textarea
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-y min-h-[120px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                placeholder={'ItemName,Program,Supplier,...\nCentennial Hops,Brewing,Hop Farm Co,...'}
+                value={text}
+                onChange={e => handleTextChange(e.target.value)}
+              />
+            </div>
+
+            {/* File upload alternative */}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or upload a file</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()} className="shrink-0">
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                {file ? file.name : 'Choose CSV file'}
+              </Button>
+              {file && (
+                <button type="button" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => { setFile(null); setParsed(null) }}>
+                  remove
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
+            </div>
+
+            {/* Parse preview */}
+            {parseError && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                {parseError}
+              </div>
+            )}
+            {parsed && parsed.length > 0 && (
+              <div className="rounded-md bg-muted/40 px-3 py-2 text-sm space-y-1">
+                <p className="font-medium">{parsed.length} row{parsed.length !== 1 ? 's' : ''} ready to import</p>
+                <p className="text-xs text-muted-foreground">
+                  First few: {parsed.slice(0, 3).map(s => s.itemName).join(', ')}{parsed.length > 3 ? ` +${parsed.length - 3} more` : ''}
+                </p>
+              </div>
+            )}
+            {hasInput && parsed?.length === 0 && !parseError && (
+              <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                No valid rows found — check that ItemName column is present and rows are non-empty.
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="submit" disabled={!parsed || parsed.length === 0 || isPending}>
+                {isPending ? 'Importing...' : `Import${parsed && parsed.length > 0 ? ` ${parsed.length} rows` : ''}`}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 type SheetMode = 'create' | 'edit'
 
@@ -97,7 +330,7 @@ export default function CatalogPage() {
   const [vendorDialogOpen, setVendorDialogOpen] = useState(false)
   const [newVendorName, setNewVendorName] = useState('')
 
-  const importInputRef = useRef<HTMLInputElement>(null)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   // --- Queries ---
   const filters: CatalogFilters = {
@@ -288,59 +521,6 @@ export default function CatalogPage() {
     }
   }
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      try {
-        const text = ev.target?.result as string
-        const specs = parseImportCsv(text)
-        importMutation.mutate(specs)
-      } catch {
-        toast.error('Failed to parse import file')
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
-
-  const parseImportCsv = (text: string): ImportItemSpec[] => {
-    const lines = text.trim().split('\n')
-    if (lines.length < 2) return []
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s/g, ''))
-    return lines.slice(1).map(line => {
-      const cols = splitCsvLine(line)
-      const obj: Record<string, string> = {}
-      headers.forEach((h, i) => { obj[h] = cols[i] ?? '' })
-      return {
-        itemName: obj['itemname'] ?? obj['name'] ?? '',
-        programName: obj['program'] || obj['programname'] || undefined,
-        supplierName: obj['supplier'] || obj['suppliername'] || undefined,
-        vendorName: obj['vendor'] || obj['vendorname'] || undefined,
-        vendorItemNumber: obj['vendoritemnumber'] || obj['vendorsku'] || undefined,
-        purchaseUomDescription: obj['purchaseuomdescription'] || undefined,
-        purchaseAmountPerUom: obj['purchaseamountperuom'] ? parseFloat(obj['purchaseamountperuom']) : undefined,
-        purchaseUomName: obj['purchaseuom'] || obj['uom'] || undefined,
-        isActive: obj['isactive'] !== 'false',
-        productTypeNames: obj['producttypes'] ? obj['producttypes'].split('|').filter(Boolean) : undefined,
-        categoryNames: obj['categories'] ? obj['categories'].split('|').filter(Boolean) : undefined,
-      } satisfies ImportItemSpec
-    }).filter(s => s.itemName)
-  }
-
-  const splitCsvLine = (line: string): string[] => {
-    const result: string[] = []
-    let cur = '', inQuote = false
-    for (const ch of line) {
-      if (ch === '"') { inQuote = !inQuote }
-      else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = '' }
-      else { cur += ch }
-    }
-    result.push(cur.trim())
-    return result
-  }
-
   const totalPages = Math.ceil((catalogData?.totalCount ?? 0) / PAGE_SIZE)
   const showingFrom = ((page - 1) * PAGE_SIZE) + 1
   const showingTo = Math.min(page * PAGE_SIZE, catalogData?.totalCount ?? 0)
@@ -366,10 +546,9 @@ export default function CatalogPage() {
           <p className="text-sm text-muted-foreground">Manage the product catalog</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => importInputRef.current?.click()}>
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
             <Upload className="h-4 w-4 mr-1" /> Import CSV
           </Button>
-          <input ref={importInputRef} type="file" accept=".csv" className="hidden" onChange={handleImportFile} />
           <a href={exportCatalogUrl({ search: search || undefined, programId: programFilter ?? undefined, categoryId: categoryFilter ?? undefined, supplierId: supplierFilter ?? undefined, vendorId: vendorFilter ?? undefined, isActive: showInactive ? undefined : true })} download="catalog.csv">
             <Button variant="outline" size="sm"><Download className="h-4 w-4 mr-1" /> Export CSV</Button>
           </a>
@@ -724,6 +903,17 @@ export default function CatalogPage() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* Import Dialog */}
+      <CatalogImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImport={specs => {
+          importMutation.mutate(specs)
+          setImportDialogOpen(false)
+        }}
+        isPending={importMutation.isPending}
+      />
 
       {/* Quick-Create Supplier Dialog */}
       <Dialog open={supplierDialogOpen} onOpenChange={setSupplierDialogOpen}>
