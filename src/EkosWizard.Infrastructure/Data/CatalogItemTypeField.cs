@@ -14,6 +14,7 @@ public class CatalogItemTypeField
     public string FieldType { get; set; } = "Text";
 
     public bool IsRequired { get; set; } = false;
+    public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
 
     public int CatalogItemTypeId { get; set; }

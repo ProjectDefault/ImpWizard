@@ -36,4 +36,6 @@ public class CatalogItem
 
     public int? CatalogItemSubTypeId { get; set; }
     public CatalogItemSubType? CatalogItemSubType { get; set; }
+
+    public ICollection<CatalogItemFieldValue> FieldValues { get; set; } = [];
 }

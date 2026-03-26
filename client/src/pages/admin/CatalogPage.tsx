@@ -17,7 +17,7 @@ import { createSupplier } from '@/api/suppliers'
 import { createVendor } from '@/api/vendors'
 import {
   getCatalogItems, getCatalogItem, createCatalogItem, updateCatalogItem, deleteCatalogItem,
-  setCatalogItemProductTypes, setCatalogItemCategories,
+  setCatalogItemProductTypes, setCatalogItemCategories, setCatalogItemFieldValues,
   bulkUpdateCatalogItems, importCatalogItems, exportCatalogUrl,
 } from '@/api/catalog'
 import type {
@@ -288,6 +288,8 @@ interface ItemForm {
   sortOrder: number
   productTypeIds: number[]
   categoryIds: number[]
+  /** fieldId → value string */
+  fieldValues: Record<number, string>
 }
 
 const emptyForm = (): ItemForm => ({
@@ -305,6 +307,7 @@ const emptyForm = (): ItemForm => ({
   sortOrder: 0,
   productTypeIds: [],
   categoryIds: [],
+  fieldValues: {},
 })
 
 export default function CatalogPage() {
@@ -380,6 +383,10 @@ export default function CatalogPage() {
   const prevEditId = useState<number | null>(null)
   if (editDetail && editItemId !== prevEditId[0]) {
     prevEditId[1](editItemId)
+    const fv: Record<number, string> = {}
+    for (const f of editDetail.fieldValues ?? []) {
+      if (f.value != null) fv[f.fieldId] = f.value
+    }
     setForm({
       itemName: editDetail.itemName,
       programId: editDetail.programId,
@@ -395,6 +402,7 @@ export default function CatalogPage() {
       sortOrder: editDetail.sortOrder,
       productTypeIds: editDetail.productTypes.map(pt => pt.id),
       categoryIds: editDetail.categories.map(c => c.id),
+      fieldValues: fv,
     })
   }
 
@@ -419,6 +427,8 @@ export default function CatalogPage() {
       const item = await createCatalogItem(payload)
       if (f.productTypeIds.length > 0) await setCatalogItemProductTypes(item.id, f.productTypeIds)
       if (f.categoryIds.length > 0) await setCatalogItemCategories(item.id, f.categoryIds)
+      const fvEntries = Object.entries(f.fieldValues).map(([id, val]) => ({ fieldId: Number(id), value: val || null }))
+      if (fvEntries.length > 0) await setCatalogItemFieldValues(item.id, { values: fvEntries })
       return item
     },
     onSuccess: () => { invalidateCatalog(); toast.success('Item created'); setSheetOpen(false); setForm(emptyForm()) },
@@ -444,6 +454,8 @@ export default function CatalogPage() {
       await updateCatalogItem(id, payload)
       await setCatalogItemProductTypes(id, f.productTypeIds)
       await setCatalogItemCategories(id, f.categoryIds)
+      const fvEntries = Object.entries(f.fieldValues).map(([fid, val]) => ({ fieldId: Number(fid), value: val || null }))
+      await setCatalogItemFieldValues(id, { values: fvEntries })
     },
     onSuccess: () => { invalidateCatalog(); toast.success('Item updated'); setSheetOpen(false); setEditItemId(null) },
     onError: () => toast.error('Failed to update item'),
@@ -795,6 +807,7 @@ export default function CatalogPage() {
                     ...f,
                     catalogItemTypeId: v === 'none' ? null : Number(v),
                     catalogItemSubTypeId: null,
+                    fieldValues: {},
                   }))}
                 >
                   <SelectTrigger>
@@ -837,6 +850,39 @@ export default function CatalogPage() {
                 })()}
               </div>
             </div>
+
+            {/* Dynamic type fields */}
+            {(() => {
+              const activeFields = catalogItemTypes
+                ?.find(t => t.id === form.catalogItemTypeId)
+                ?.fields.filter(f => f.isActive) ?? []
+              if (activeFields.length === 0) return null
+              return (
+                <div className="space-y-3 rounded-md border p-3 bg-muted/20">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {catalogItemTypes?.find(t => t.id === form.catalogItemTypeId)?.name} Fields
+                  </p>
+                  {activeFields.map(field => (
+                    <div key={field.id} className="space-y-1">
+                      <Label>
+                        {field.fieldLabel}
+                        {field.isRequired && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                      <Input
+                        type={field.fieldType === 'Number' ? 'number' : 'text'}
+                        step={field.fieldType === 'Number' ? 'any' : undefined}
+                        value={form.fieldValues[field.id] ?? ''}
+                        onChange={e => setForm(f => ({
+                          ...f,
+                          fieldValues: { ...f.fieldValues, [field.id]: e.target.value },
+                        }))}
+                        placeholder={field.fieldType === 'Number' ? '0' : ''}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
 
             <div className="space-y-1">
               <Label>Program</Label>

@@ -9,6 +9,17 @@ export interface CatalogItemSubTypeDto {
   catalogItemTypeId: number
 }
 
+export interface CatalogItemTypeFieldDto {
+  id: number
+  fieldName: string
+  fieldLabel: string
+  fieldType: 'Text' | 'Number'
+  isRequired: boolean
+  isActive: boolean
+  sortOrder: number
+  catalogItemTypeId: number
+}
+
 export interface CatalogItemTypeDto {
   id: number
   name: string
@@ -16,6 +27,7 @@ export interface CatalogItemTypeDto {
   sortOrder: number
   isActive: boolean
   subTypes: CatalogItemSubTypeDto[]
+  fields: CatalogItemTypeFieldDto[]
 }
 
 export interface CreateCatalogItemTypePayload {
@@ -75,4 +87,31 @@ export async function updateCatalogItemSubType(typeId: number, subId: number, pa
 
 export async function deleteCatalogItemSubType(typeId: number, subId: number): Promise<void> {
   await apiClient.delete(`/catalog-item-types/${typeId}/subtypes/${subId}`)
+}
+
+export interface CreateCatalogItemTypeFieldPayload {
+  fieldName: string
+  fieldLabel: string
+  fieldType: 'Text' | 'Number'
+  isRequired?: boolean
+  sortOrder?: number
+}
+
+export interface UpdateCatalogItemTypeFieldPayload {
+  fieldName?: string
+  fieldLabel?: string
+  fieldType?: 'Text' | 'Number'
+  isRequired?: boolean
+  isActive?: boolean
+  sortOrder?: number
+}
+
+export async function createCatalogItemTypeField(typeId: number, payload: CreateCatalogItemTypeFieldPayload): Promise<CatalogItemTypeFieldDto> {
+  const { data } = await apiClient.post<CatalogItemTypeFieldDto>(`/catalog-item-types/${typeId}/fields`, payload)
+  return data
+}
+
+export async function updateCatalogItemTypeField(typeId: number, fieldId: number, payload: UpdateCatalogItemTypeFieldPayload): Promise<CatalogItemTypeFieldDto> {
+  const { data } = await apiClient.put<CatalogItemTypeFieldDto>(`/catalog-item-types/${typeId}/fields/${fieldId}`, payload)
+  return data
 }

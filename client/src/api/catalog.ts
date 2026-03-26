@@ -34,6 +34,15 @@ export interface CatalogItemListDto {
   categories: string[]
 }
 
+export interface FieldValueDto {
+  fieldId: number
+  fieldName: string
+  fieldLabel: string
+  fieldType: 'Text' | 'Number'
+  isRequired: boolean
+  value: string | null
+}
+
 export interface CatalogItemDetailDto {
   id: number
   itemName: string
@@ -60,6 +69,7 @@ export interface CatalogItemDetailDto {
   uomType: string | null
   productTypes: ProductTypeRefDto[]
   categories: CategoryRefDto[]
+  fieldValues: FieldValueDto[]
 }
 
 export interface PagedResult<T> {
@@ -203,6 +213,15 @@ export async function bulkUpdateCatalogItems(payload: BulkUpdatePayload): Promis
 
 export async function importCatalogItems(specs: ImportItemSpec[]): Promise<ImportSummaryDto> {
   const { data } = await apiClient.post<ImportSummaryDto>('/catalog/import', specs)
+  return data
+}
+
+export interface SetFieldValuesPayload {
+  values: { fieldId: number; value: string | null }[]
+}
+
+export async function setCatalogItemFieldValues(id: number, payload: SetFieldValuesPayload): Promise<CatalogItemDetailDto> {
+  const { data } = await apiClient.put<CatalogItemDetailDto>(`/catalog/${id}/field-values`, payload)
   return data
 }
 

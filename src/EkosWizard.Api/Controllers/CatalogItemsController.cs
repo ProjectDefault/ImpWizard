@@ -37,6 +37,10 @@ public class CatalogItemsController : ControllerBase
         IEnumerable<string> ProductTypes,
         IEnumerable<string> Categories);
 
+    public record FieldValueDto(int FieldId, string FieldName, string FieldLabel, string FieldType, bool IsRequired, string? Value);
+    public record FieldValueEntry(int FieldId, string? Value);
+    public record SetFieldValuesRequest(IEnumerable<FieldValueEntry> Values);
+
     public record CatalogItemDetailDto(
         int Id, string ItemName, string DisplayLabel, bool IsActive, int SortOrder,
         int? CatalogItemTypeId, string? CatalogItemTypeName,
@@ -48,7 +52,8 @@ public class CatalogItemsController : ControllerBase
         string? PurchaseUomDescription, decimal? PurchaseAmountPerUom,
         int? PurchaseUomId, string? PurchaseUomName, string? PurchaseUomAbbreviation, string? UomType,
         IEnumerable<ProductTypeRefDto> ProductTypes,
-        IEnumerable<CategoryRefDto> Categories);
+        IEnumerable<CategoryRefDto> Categories,
+        IEnumerable<FieldValueDto> FieldValues);
 
     public record PagedResult<T>(IEnumerable<T> Items, int TotalCount, int Page, int PageSize);
 
@@ -112,19 +117,38 @@ public class CatalogItemsController : ControllerBase
         ci.ProductTypes.Select(pt => pt.Name),
         ci.Categories.Select(c => c.Name));
 
-    private static CatalogItemDetailDto ToDetailDto(CatalogItem ci) => new(
-        ci.Id, ci.ItemName, ComputeDisplayLabel(ci), ci.IsActive, ci.SortOrder,
-        ci.CatalogItemTypeId, ci.CatalogItemType?.Name,
-        ci.CatalogItemSubTypeId, ci.CatalogItemSubType?.Name,
-        ci.ProgramId, ci.Program?.Name, ci.Program?.Color,
-        ci.SupplierId, ci.Supplier?.Name,
-        ci.VendorId, ci.Vendor?.Name,
-        ci.VendorItemNumber,
-        ci.PurchaseUomDescription, ci.PurchaseAmountPerUom,
-        ci.PurchaseUomId, ci.PurchaseUom?.Name, ci.PurchaseUom?.Abbreviation, ci.PurchaseUom?.UnitCategory,
-        ci.ProductTypes.Select(pt => new ProductTypeRefDto(pt.Id, pt.Name)),
-        ci.Categories.Select(c => new CategoryRefDto(c.Id, c.Name)));
+    private static CatalogItemDetailDto ToDetailDto(CatalogItem ci)
+    {
+        // Build field values: all active fields on the type, merged with stored values
+        var fieldValues = Enumerable.Empty<FieldValueDto>();
+        if (ci.CatalogItemType?.Fields is not null)
+        {
+            fieldValues = ci.CatalogItemType.Fields
+                .Where(f => f.IsActive)
+                .OrderBy(f => f.SortOrder).ThenBy(f => f.FieldName)
+                .Select(f =>
+                {
+                    var stored = ci.FieldValues.FirstOrDefault(v => v.CatalogItemTypeFieldId == f.Id);
+                    return new FieldValueDto(f.Id, f.FieldName, f.FieldLabel, f.FieldType, f.IsRequired, stored?.Value);
+                });
+        }
 
+        return new CatalogItemDetailDto(
+            ci.Id, ci.ItemName, ComputeDisplayLabel(ci), ci.IsActive, ci.SortOrder,
+            ci.CatalogItemTypeId, ci.CatalogItemType?.Name,
+            ci.CatalogItemSubTypeId, ci.CatalogItemSubType?.Name,
+            ci.ProgramId, ci.Program?.Name, ci.Program?.Color,
+            ci.SupplierId, ci.Supplier?.Name,
+            ci.VendorId, ci.Vendor?.Name,
+            ci.VendorItemNumber,
+            ci.PurchaseUomDescription, ci.PurchaseAmountPerUom,
+            ci.PurchaseUomId, ci.PurchaseUom?.Name, ci.PurchaseUom?.Abbreviation, ci.PurchaseUom?.UnitCategory,
+            ci.ProductTypes.Select(pt => new ProductTypeRefDto(pt.Id, pt.Name)),
+            ci.Categories.Select(c => new CategoryRefDto(c.Id, c.Name)),
+            fieldValues);
+    }
+
+    // Lightweight query for list/export — no field value joins
     private IQueryable<CatalogItem> BuildQuery() =>
         _db.CatalogItems
             .Include(ci => ci.Program)
@@ -135,6 +159,21 @@ public class CatalogItemsController : ControllerBase
             .Include(ci => ci.Categories)
             .Include(ci => ci.CatalogItemType)
             .Include(ci => ci.CatalogItemSubType);
+
+    // Full query for single-item detail — includes type fields + stored values
+    private IQueryable<CatalogItem> BuildDetailQuery() =>
+        _db.CatalogItems
+            .Include(ci => ci.Program)
+            .Include(ci => ci.Supplier)
+            .Include(ci => ci.Vendor)
+            .Include(ci => ci.PurchaseUom)
+            .Include(ci => ci.ProductTypes)
+            .Include(ci => ci.Categories)
+            .Include(ci => ci.CatalogItemType)
+                .ThenInclude(t => t!.Fields.OrderBy(f => f.SortOrder))
+            .Include(ci => ci.CatalogItemSubType)
+            .Include(ci => ci.FieldValues)
+                .ThenInclude(v => v.CatalogItemTypeField);
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
 
@@ -191,7 +230,7 @@ public class CatalogItemsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var ci = await BuildQuery().FirstOrDefaultAsync(ci => ci.Id == id);
+        var ci = await BuildDetailQuery().FirstOrDefaultAsync(ci => ci.Id == id);
         return ci is null ? NotFound() : Ok(ToDetailDto(ci));
     }
 
@@ -222,7 +261,7 @@ public class CatalogItemsController : ControllerBase
         await _db.SaveChangesAsync();
         await _audit.LogAsync(User, "catalog_item.created", "CatalogItem", ci.Id.ToString(), ci.ItemName);
 
-        var result = await BuildQuery().FirstAsync(x => x.Id == ci.Id);
+        var result = await BuildDetailQuery().FirstAsync(x => x.Id == ci.Id);
         return CreatedAtAction(nameof(GetById), new { id = ci.Id }, ToDetailDto(result));
     }
 
@@ -230,7 +269,7 @@ public class CatalogItemsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateCatalogItemRequest req)
     {
-        var ci = await BuildQuery().FirstOrDefaultAsync(ci => ci.Id == id);
+        var ci = await BuildDetailQuery().FirstOrDefaultAsync(ci => ci.Id == id);
         if (ci is null) return NotFound();
 
         if (req.ItemName is not null) ci.ItemName = req.ItemName.Trim();
@@ -249,7 +288,7 @@ public class CatalogItemsController : ControllerBase
 
         await _db.SaveChangesAsync();
         await _audit.LogAsync(User, "catalog_item.updated", "CatalogItem", ci.Id.ToString(), ci.ItemName);
-        var result = await BuildQuery().FirstAsync(x => x.Id == id);
+        var result = await BuildDetailQuery().FirstAsync(x => x.Id == id);
         return Ok(ToDetailDto(result));
     }
 
@@ -281,7 +320,7 @@ public class CatalogItemsController : ControllerBase
         ci.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
-        var result = await BuildQuery().FirstAsync(x => x.Id == id);
+        var result = await BuildDetailQuery().FirstAsync(x => x.Id == id);
         return Ok(ToDetailDto(result));
     }
 
@@ -300,7 +339,56 @@ public class CatalogItemsController : ControllerBase
         ci.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
-        var result = await BuildQuery().FirstAsync(x => x.Id == id);
+        var result = await BuildDetailQuery().FirstAsync(x => x.Id == id);
+        return Ok(ToDetailDto(result));
+    }
+
+    // ── Field Values ──────────────────────────────────────────────────────────
+
+    [HttpPut("{id:int}/field-values")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SetFieldValues(int id, [FromBody] SetFieldValuesRequest req)
+    {
+        var ci = await _db.CatalogItems
+            .Include(x => x.CatalogItemType).ThenInclude(t => t!.Fields)
+            .FirstOrDefaultAsync(x => x.Id == id);
+        if (ci is null) return NotFound();
+
+        var allowedFieldIds = ci.CatalogItemType?.Fields
+            .Where(f => f.IsActive)
+            .Select(f => f.Id)
+            .ToHashSet() ?? [];
+
+        foreach (var entry in req.Values)
+        {
+            if (!allowedFieldIds.Contains(entry.FieldId))
+                return BadRequest(new { message = $"FieldId {entry.FieldId} does not belong to this item's active type fields." });
+        }
+
+        // Replace all values scoped to this type's active fields
+        var existing = await _db.CatalogItemFieldValues
+            .Where(v => v.CatalogItemId == id && allowedFieldIds.Contains(v.CatalogItemTypeFieldId))
+            .ToListAsync();
+        _db.CatalogItemFieldValues.RemoveRange(existing);
+
+        foreach (var entry in req.Values)
+        {
+            if (!string.IsNullOrWhiteSpace(entry.Value))
+            {
+                _db.CatalogItemFieldValues.Add(new CatalogItemFieldValue
+                {
+                    CatalogItemId = id,
+                    CatalogItemTypeFieldId = entry.FieldId,
+                    Value = entry.Value.Trim(),
+                });
+            }
+        }
+
+        ci.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(User, "catalog_item.field_values_updated", "CatalogItem", id.ToString(), ci.ItemName);
+
+        var result = await BuildDetailQuery().FirstAsync(x => x.Id == id);
         return Ok(ToDetailDto(result));
     }
 
@@ -548,13 +636,45 @@ public class CatalogItemsController : ControllerBase
 
         var items = await query.OrderBy(ci => ci.ItemName).ToListAsync();
 
+        // Load active type fields for types present in the result set
+        var typeIds = items
+            .Where(ci => ci.CatalogItemTypeId.HasValue)
+            .Select(ci => ci.CatalogItemTypeId!.Value)
+            .Distinct()
+            .ToList();
+
+        var allTypeFields = typeIds.Count == 0
+            ? []
+            : await _db.CatalogItemTypeFields
+                .Where(f => typeIds.Contains(f.CatalogItemTypeId) && f.IsActive)
+                .OrderBy(f => f.CatalogItemTypeId).ThenBy(f => f.SortOrder).ThenBy(f => f.FieldName)
+                .ToListAsync();
+
+        var itemIds = items.Select(ci => ci.Id).ToList();
+        var fieldValues = itemIds.Count == 0 || allTypeFields.Count == 0
+            ? []
+            : await _db.CatalogItemFieldValues
+                .Where(v => itemIds.Contains(v.CatalogItemId))
+                .ToListAsync();
+
+        // Build a lookup: itemId → (fieldId → value)
+        var fvLookup = fieldValues
+            .GroupBy(v => v.CatalogItemId)
+            .ToDictionary(g => g.Key, g => g.ToDictionary(v => v.CatalogItemTypeFieldId, v => v.Value));
+
+        var staticHeader = "ItemName,ItemType,ItemSubType,Categories,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,UomType,Program,IsActive,SortOrder,ProductTypes";
+        var fieldHeader = allTypeFields.Count == 0
+            ? ""
+            : "," + string.Join(",", allTypeFields.Select(f => CsvEscape(f.FieldLabel)));
+
         var sb = new StringBuilder();
-        sb.AppendLine("ItemName,ItemType,ItemSubType,Categories,Supplier,Vendor,VendorItemNumber,PurchaseUomDescription,PurchaseAmountPerUom,PurchaseUom,UomType,Program,IsActive,SortOrder,ProductTypes");
+        sb.AppendLine(staticHeader + fieldHeader);
+
         foreach (var ci in items)
         {
             var categoryNames = string.Join("|", ci.Categories.Select(c => c.Name));
             var productTypeNames = string.Join("|", ci.ProductTypes.Select(pt => pt.Name));
-            sb.AppendLine(string.Join(",",
+            var staticCols = string.Join(",",
                 CsvEscape(ci.ItemName),
                 CsvEscape(ci.CatalogItemType?.Name),
                 CsvEscape(ci.CatalogItemSubType?.Name),
@@ -569,7 +689,24 @@ public class CatalogItemsController : ControllerBase
                 CsvEscape(ci.Program?.Name),
                 ci.IsActive.ToString(),
                 ci.SortOrder.ToString(),
-                CsvEscape(productTypeNames)));
+                CsvEscape(productTypeNames));
+
+            if (allTypeFields.Count == 0)
+            {
+                sb.AppendLine(staticCols);
+            }
+            else
+            {
+                fvLookup.TryGetValue(ci.Id, out var itemFvMap);
+                var fieldCols = string.Join(",", allTypeFields.Select(f =>
+                {
+                    // Emit empty cell for fields that don't belong to this item's type
+                    if (f.CatalogItemTypeId != ci.CatalogItemTypeId) return "";
+                    var val = itemFvMap is not null && itemFvMap.TryGetValue(f.Id, out var v) ? v : null;
+                    return CsvEscape(val);
+                }));
+                sb.AppendLine(staticCols + "," + fieldCols);
+            }
         }
 
         return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", "catalog.csv");
