@@ -161,7 +161,7 @@ namespace ImpWizard.Infrastructure.Migrations
                 column: "CatalogItemTypeId",
                 principalTable: "CatalogItemTypes",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
+                onDelete: ReferentialAction.NoAction);  // avoid multiple cascade paths
         }
 
         /// <inheritdoc />

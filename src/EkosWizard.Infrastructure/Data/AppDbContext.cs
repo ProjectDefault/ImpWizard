@@ -265,7 +265,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne(ci => ci.CatalogItemType)
              .WithMany()
              .HasForeignKey(ci => ci.CatalogItemTypeId)
-             .OnDelete(DeleteBehavior.SetNull);
+             .OnDelete(DeleteBehavior.Restrict);  // avoid multiple cascade paths from CatalogItemTypes
 
             e.HasOne(ci => ci.CatalogItemSubType)
              .WithMany()
