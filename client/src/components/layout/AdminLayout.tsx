@@ -51,6 +51,7 @@ import {
   ShoppingBasket,
   Calendar,
   FileText,
+  ExternalLink,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -297,6 +298,16 @@ export default function AdminLayout() {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
+
+                  {/* Project Plan — external static link */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <a href="/PROJECT-PLAN.html" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                        <ExternalLink className="h-4 w-4 shrink-0" />
+                        <span>Project Plan</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

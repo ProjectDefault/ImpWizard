@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Imp Wizard — Project Plan</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:     #2563eb;
+      --brand-lt:  #dbeafe;
+      --accent:    #0ea5e9;
+      --green:     #16a34a;
+      --green-lt:  #dcfce7;
+      --yellow:    #ca8a04;
+      --yellow-lt: #fef9c3;
+      --red:       #dc2626;
+      --red-lt:    #fee2e2;
+      --gray-50:   #f8fafc;
+      --gray-100:  #f1f5f9;
+      --gray-200:  #e2e8f0;
+      --gray-400:  #94a3b8;
+      --gray-600:  #475569;
+      --gray-700:  #334155;
+      --gray-900:  #0f172a;
+      --radius:    8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
+      color: #fff;
+      padding: 48px 40px 40px;
+    }
+    header .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      opacity: .75;
+      margin-bottom: 8px;
+    }
+    header h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -.02em; }
+    header .sub { font-size: 1.05rem; opacity: .85; margin-top: 8px; max-width: 640px; }
+    header .meta {
+      display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap;
+    }
+    header .meta span {
+      background: rgba(255,255,255,.15);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: .82rem;
+      font-weight: 600;
+    }
+
+    /* ── LAYOUT ── */
+    .layout { display: flex; min-height: calc(100vh - 160px); }
+
+    nav {
+      width: 240px;
+      flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid var(--gray-200);
+      padding: 28px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav .nav-section {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--gray-400);
+      padding: 16px 20px 6px;
+    }
+    nav a {
+      display: block;
+      padding: 7px 20px;
+      font-size: .85rem;
+      color: var(--gray-600);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all .15s;
+    }
+    nav a:hover, nav a.active {
+      background: var(--brand-lt);
+      color: var(--brand);
+      border-left-color: var(--brand);
+    }
+
+    main {
+      flex: 1;
+      padding: 40px 48px;
+      max-width: 900px;
+    }
+
+    /* ── SECTIONS ── */
+    section { margin-bottom: 56px; }
+    section h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--gray-900);
+      border-bottom: 2px solid var(--gray-200);
+      padding-bottom: 10px;
+      margin-bottom: 24px;
+    }
+    section h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--brand);
+      margin: 28px 0 10px;
+    }
+    p { color: var(--gray-700); margin-bottom: 12px; }
+    ul { padding-left: 20px; margin-bottom: 12px; }
+    li { color: var(--gray-700); margin-bottom: 4px; }
+    strong { color: var(--gray-900); }
+    code {
+      background: var(--gray-100);
+      border: 1px solid var(--gray-200);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: .82rem;
+      font-family: "SF Mono", Consolas, monospace;
+      color: #be185d;
+    }
+
+    /* ── DECISIONS LOG ── */
+    .decision {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      border-left: 4px solid var(--brand);
+    }
+    .decision .q {
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--gray-400);
+      margin-bottom: 4px;
+    }
+    .decision .question { font-weight: 600; color: var(--gray-900); margin-bottom: 8px; }
+    .decision .answer {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--green-lt);
+      color: var(--green);
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: .82rem;
+      font-weight: 600;
+    }
+    .decision .rationale { font-size: .88rem; color: var(--gray-600); margin-top: 8px; }
+
+    /* ── STACK TABLE ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+      margin-bottom: 16px;
+    }
+    thead th {
+      background: var(--gray-100);
+      text-align: left;
+      padding: 10px 14px;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--gray-600);
+    }
+    tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-700);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody td:first-child { font-weight: 600; color: var(--gray-900); width: 30%; }
+
+    /* ── DATA MODEL ── */
+    .model-card {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      margin-bottom: 12px;
+    }
+    .model-card h4 {
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .model-card h4 .badge {
+      font-size: .7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--brand-lt);
+      color: var(--brand);
+    }
+    .phase-title .badge {
+      font-size: .68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      vertical-align: middle;
+    }
+    .phase-title .badge-done  { background: var(--green-lt);  color: var(--green); }
+    .phase-title .badge-wip   { background: var(--yellow-lt); color: var(--yellow); }
+    .phase-title .badge-todo  { background: var(--gray-100);  color: var(--gray-600); }
+    .model-card .fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .model-card .field {
+      background: var(--gray-100);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: .78rem;
+      font-family: "SF Mono", Consolas, monospace;
+      color: var(--gray-700);
+    }
+    .model-card .field.pk { background: #fef3c7; color: #92400e; }
+    .model-card .field.fk { background: #dbeafe; color: #1d4ed8; }
+
+    /* ── PHASES ── */
+    .phase {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 24px;
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .phase-number {
+      width: 36px;
+      height: 36px;
+      background: var(--brand);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: .9rem;
+      flex-shrink: 0;
+    }
+    .phase-title { font-size: 1.05rem; font-weight: 700; color: var(--gray-900); }
+    .phase-goal { font-size: .85rem; color: var(--gray-600); }
+    .phase-body { padding: 20px 24px; }
+    .phase-body ol { padding-left: 20px; }
+    .phase-body li { color: var(--gray-700); margin-bottom: 6px; font-size: .9rem; }
+    .deliverable {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: var(--green-lt);
+      border-radius: 6px;
+      font-size: .88rem;
+      color: var(--green);
+      font-weight: 600;
+    }
+    .deliverable::before { content: "✓"; font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── SOLUTION STRUCTURE ── */
+    pre {
+      background: var(--gray-900);
+      color: #e2e8f0;
+      border-radius: var(--radius);
+      padding: 24px;
+      font-size: .82rem;
+      font-family: "SF Mono", Consolas, monospace;
+      overflow-x: auto;
+      line-height: 1.7;
+    }
+    pre .comment { color: #64748b; }
+    pre .file    { color: #7dd3fc; }
+    pre .folder  { color: #fde68a; }
+
+    /* ── NOTES ── */
+    .note {
+      background: #fff;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+    }
+    .note h4 { font-size: .9rem; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
+    .note p, .note li { font-size: .88rem; color: var(--gray-600); }
+
+    /* ── VERIFY ── */
+    .verify-item {
+      display: flex;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: .9rem;
+    }
+    .verify-item:last-child { border-bottom: none; }
+    .verify-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: .78rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .verify-text { color: var(--gray-700); }
+    .verify-text strong { color: var(--gray-900); }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 28px;
+      color: var(--gray-400);
+      font-size: .82rem;
+      border-top: 1px solid var(--gray-200);
+    }
+
+    @media (max-width: 768px) {
+      nav { display: none; }
+      main { padding: 24px 20px; }
+      header { padding: 32px 20px; }
+      header h1 { font-size: 1.7rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Imp Wizard</div>
+  <h1>Imp Wizard — Project Plan</h1>
+  <p class="sub">A guided onboarding implementation tool replacing manual spreadsheets with a structured, beverage-agnostic setup wizard.</p>
+  <div class="meta">
+    <span>ASP.NET Core 8 Web API</span>
+    <span>React 18 + TypeScript</span>
+    <span>SQL Server</span>
+    <span>Docker Compose</span>
+    <span>Salesforce Integration</span>
+    <span>13+ Phases</span>
+    <span>Generated March 2026</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <nav>
+    <div class="nav-section">Overview</div>
+    <a href="#context">Context</a>
+    <a href="#decisions">Key Decisions</a>
+    <a href="#stack">Stack</a>
+    <a href="#structure">Solution Structure</a>
+
+    <div class="nav-section">Data Model</div>
+    <a href="#data-model">All Tables</a>
+
+    <div class="nav-section">Phases</div>
+    <a href="#phase-1">1 &mdash; Foundation &amp; Auth</a>
+    <a href="#phase-1a">1a &mdash; Admin Data Mgmt</a>
+    <a href="#phase-1b">1b &mdash; Forms &amp; Lifecycle</a>
+    <a href="#phase-1c">1c &mdash; Import Templates</a>
+    <a href="#phase-1d">1d &mdash; Form Change Review</a>
+    <a href="#phase-1e">1e &mdash; Program Management</a>
+    <a href="#phase-1i">1i &mdash; Form Field Enhancements</a>
+    <a href="#phase-1j">1j &mdash; Bulk File Submission</a>
+    <a href="#phase-1k">1k &mdash; Packaging Types Catalog</a>
+    <a href="#phase-2">2 &mdash; Audit Log</a>
+    <a href="#phase-3">3 &mdash; Salesforce</a>
+    <a href="#phase-4">4 &mdash; QuickBooks</a>
+    <a href="#phase-5">5 &mdash; Item Catalog</a>
+    <a href="#phase-6">6 &mdash; Wizard Steps 1&amp;2</a>
+    <a href="#phase-7">7 &mdash; Products Import</a>
+    <a href="#phase-8">8 &mdash; Item Search</a>
+    <a href="#phase-9">9 &mdash; Inline Editing</a>
+    <a href="#phase-10">10 &mdash; Validation</a>
+    <a href="#phase-11">11 &mdash; XLSX Export</a>
+    <a href="#phase-12">12 &mdash; Post-Implementation</a>
+    <a href="#phase-13">13 &mdash; Admin View</a>
+    <a href="#phase-14">14 &mdash; Journey Builder</a>
+    <a href="#phase-15">15 &mdash; Customer Portal</a>
+    <a href="#phase-16">16 &mdash; SuperCustomer Powers</a>
+    <a href="#phase-17">17 &mdash; Form Fill UI</a>
+    <a href="#phase-18">18 &mdash; Tracking &amp; Activity</a>
+    <a href="#phase-19">19 &mdash; Integration Hooks</a>
+    <a href="#phase-20">20 &mdash; Stage Category Management</a>
+
+    <div class="nav-section">Reference</div>
+    <a href="#cross-cutting">Cross-Cutting Notes</a>
+    <a href="#verification">Verification</a>
+  </nav>
+
+  <main>
+
+    <!-- CONTEXT -->
+    <section id="context">
+      <h2>Context &amp; Problem Statement</h2>
+      <p>Customers onboarding to <strong>Imp Wizard</strong> — a beverage-agnostic platform serving breweries, wineries, cideries, distilleries, kombucha producers, coffee roasters, soda makers, and more — currently complete raw import spreadsheets manually. This creates friction, import errors, and slow time-to-value.</p>
+      <p>This project replaces that experience with a guided, step-by-step implementation wizard where:</p>
+      <ul>
+        <li>Salesforce Opportunity/Account data <strong>auto-populates</strong> the customer profile</li>
+        <li>QuickBooks exports can be <strong>uploaded, mapped, and imported</strong> to supplement customer/contact data</li>
+        <li>Products and Package Types can be imported from <strong>any structured spreadsheet</strong> via a flexible column-mapping uploader</li>
+        <li>Customers or implementation specialists search a <strong>14,000-item catalog</strong> classified by producer type</li>
+        <li>Items are staged, edited inline, validated, and exported as clean <code>.xlsx</code> files for import</li>
+        <li>A full <strong>changelog/audit log</strong> records every action taken by customers and implementation specialists</li>
+        <li>The tool remains useful <strong>after implementation</strong> — customers can bulk import new items from suppliers at any time</li>
+      </ul>
+      <p><strong>Salesforce integration is bidirectional</strong>: pull customer/project data in at the start, push status and export events back out at key milestones.</p>
+    </section>
+
+    <!-- KEY DECISIONS -->
+    <section id="decisions">
+      <h2>Key Architecture Decisions</h2>
+
+      <div class="decision">
+        <div class="q">Decision 1</div>
+        <div class="question">Frontend approach</div>
+        <div class="answer">&#10003; ASP.NET Core 8 Web API + React (TypeScript/Vite)</div>
+        <div class="rationale">Blazor Server was considered but ruled out due to its SignalR/WebSocket session dependency — customers filling out onboarding data over 30+ minutes cannot tolerate a dropped connection losing their state. React was chosen for its superior ecosystem for this UI pattern: dnd-kit (drag-and-drop), TanStack Query (server state), Zustand (local state), and react-dropzone (file uploads). The .NET backend handles all heavy lifting: file parsing, Salesforce REST calls, EF Core, Excel generation.</div>
+      </div>
+
+      <div class="decision">
+        <div class="q">Decision 2</div>
+        <div class="question">Database</div>
+        <div class="answer">&#10003; SQL Server with Full-Text Search</div>
+        <div class="rationale">Natural fit for .NET / Azure. Full-Text Search (FTS) required to serve fast keyword queries against a 14,000-item catalog across ItemName, SearchAliases, and Description columns. Azure SQL is the future hosting target.</div>
+      </div>
+
+      <div class="decision">
+        <div class="q">Decision 3</div>
+        <div class="question">Salesforce integration scope</div>
+        <div class="answer">&#10003; Bidirectional — pull on email match + push status/export events</div>
+        <div class="rationale">Email entered in Step 1 triggers an async SF Contact lookup. If a match + linked Opportunity is found, profile fields are pre-filled. All pre-filled fields remain editable. Status changes and export events are pushed back to SF. The NoOpSalesforceService runs when Enabled = false so the app works without SF credentials during development.</div>
+      </div>
+
+      <div class="decision">
+        <div class="q">Decision 4</div>
+        <div class="question">QuickBooks integration</div>
+        <div class="answer">&#10003; File upload (CSV / IIF) — no live API connection</div>
+        <div class="rationale">Avoids QB OAuth app registration complexity. Customer or specialist exports data from QuickBooks, uploads the file, and the wizard parses/maps/flags it. Simpler, faster to implement, and works with both QB Desktop (IIF) and QB Online (CSV export).</div>
+      </div>
+
+      <div class="decision">
+        <div class="q">Decision 5</div>
+        <div class="question">Item catalog source</div>
+        <div class="answer">&#10003; CSV spreadsheet bulk seeder (14,000 items)</div>
+        <div class="rationale">Items exist in spreadsheet form. A CatalogItemSeeder with upsert-on-name logic loads all items safely and can be re-run as the catalog grows. Items classified by producer type via a many-to-many join table (one item can belong to Brewery + Kombucha + Soda simultaneously).</div>
+      </div>
+
+      <div class="decision">
+        <div class="q">Decision 6</div>
+        <div class="question">Products &amp; Package Types source</div>
+        <div class="answer">&#10003; Flexible uploader — any structured spreadsheet, any source</div>
+        <div class="rationale">Products come from anywhere: supplier price lists, ERP exports, implementation templates. A column-mapping step lets users assign their file's columns to target fields. Mappings can be saved as named templates for reuse on future uploads. Works during implementation and post go-live.</div>
+      </div>
+
+      <div class="decision">
+        <div class="q">Decision 7</div>
+        <div class="question">Hosting</div>
+        <div class="answer">&#10003; Azure (future) — out of scope for MVP</div>
+        <div class="rationale">Azure App Service + Azure SQL is the eventual hosting target. Architecture decisions (EF Core, ASP.NET Core, Vite build output) are all Azure-compatible. Hosting setup deferred until development is further along.</div>
+      </div>
+    </section>
+
+    <!-- STACK -->
+    <section id="stack">
+      <h2>Technology Stack</h2>
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Technology</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Backend</td><td>ASP.NET Core 8 Web API (C#)</td></tr>
+          <tr><td>Frontend</td><td>React 18 + TypeScript (Vite)</td></tr>
+          <tr><td>ORM</td><td>Entity Framework Core 8</td></tr>
+          <tr><td>Database</td><td>SQL Server (with Full-Text Search for catalog)</td></tr>
+          <tr><td>Excel Export</td><td>ClosedXML (MIT license)</td></tr>
+          <tr><td>Excel/CSV Parse</td><td>ExcelDataReader + CsvHelper</td></tr>
+          <tr><td>Drag &amp; Drop</td><td>@dnd-kit/core + @dnd-kit/sortable</td></tr>
+          <tr><td>State Management</td><td>Zustand + TanStack Query</td></tr>
+          <tr><td>Auth</td><td>ASP.NET Core Identity + JWT Bearer</td></tr>
+          <tr><td>HTTP Client</td><td>Axios (proxied via Vite dev server)</td></tr>
+          <tr><td>Salesforce</td><td>ISalesforceService — OAuth2 + REST API (read + write)</td></tr>
+          <tr><td>QuickBooks</td><td>File-upload parser (CSV / IIF) — no live API</td></tr>
+          <tr><td>Testing</td><td>xUnit + Moq + FluentAssertions</td></tr>
+          <tr><td>Hosting (future)</td><td>Azure App Service + Azure Static Web Apps + Azure SQL</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SOLUTION STRUCTURE -->
+    <section id="structure">
+      <h2>Solution Structure</h2>
+      <pre>ImpWizard/                              <span class="comment"># Imp Wizard project root (Google Drive folder name unchanged)</span>
+├── <span class="file">EkosWizard.sln</span>                      <span class="comment"># Solution (display names: ImpWizard.*)</span>
+├── <span class="file">docker-compose.yml</span>                  <span class="comment"># API + React client + SQL Server</span>
+├── <span class="file">Dockerfile.api</span>                      <span class="comment"># Multi-stage build for API</span>
+├── <span class="file">README.md</span>
+├── <span class="file">PROJECT-PLAN.html</span>
+│
+├── <span class="folder">src/</span>                                <span class="comment"># .NET backend (all namespaces: ImpWizard.*)</span>
+│   ├── <span class="folder">EkosWizard.Api/</span>                 <span class="comment"># ASP.NET Core 8 Web API</span>
+│   │   ├── <span class="folder">Controllers/</span>                <span class="comment"># Auth, Forms, Admin, Wizard, UoM, etc.</span>
+│   │   ├── <span class="folder">Services/</span>                   <span class="comment"># FormChangeProcessorService (BackgroundService)</span>
+│   │   ├── <span class="file">Program.cs</span>                  <span class="comment"># DI, CORS, Swagger, JWT, background service</span>
+│   │   └── <span class="file">appsettings.json</span>            <span class="comment"># JWT + Salesforce + DB config</span>
+│   │
+│   ├── <span class="folder">EkosWizard.Core/</span>                <span class="comment"># Domain models + interfaces</span>
+│   │   ├── <span class="folder">Models/</span>                     <span class="comment"># Entities: Form, ImportTemplate, UnitOfMeasure, etc.</span>
+│   │   └── <span class="folder">Interfaces/</span>                 <span class="comment"># ICurrentUserService, ISalesforceService</span>
+│   │
+│   ├── <span class="folder">EkosWizard.Infrastructure/</span>      <span class="comment"># EF Core + services + data</span>
+│   │   ├── <span class="folder">Data/</span>                       <span class="comment"># AppDbContext, Migrations, DataSeeder</span>
+│   │   └── <span class="folder">Services/</span>                   <span class="comment"># ImportTemplateService, ExportService, etc.</span>
+│   │
+│   └── <span class="folder">EkosWizard.Tests/</span>               <span class="comment"># xUnit + Moq + FluentAssertions</span>
+│
+└── <span class="folder">client/</span>                             <span class="comment"># React 18 TypeScript (Vite + shadcn/ui)</span>
+    ├── <span class="file">vite.config.ts</span>                  <span class="comment"># /api proxied → API container</span>
+    └── <span class="folder">src/</span>
+        ├── <span class="folder">api/</span>                        <span class="comment"># Axios client + TanStack Query hooks</span>
+        ├── <span class="folder">pages/</span>
+        │   ├── <span class="folder">admin/</span>                  <span class="comment"># Dashboard, Forms, Categories, RefData, UoM, etc.</span>
+        │   └── <span class="folder">wizard/</span>                 <span class="comment"># Step1–Step7 wizard pages</span>
+        └── <span class="folder">components/</span>
+            ├── <span class="folder">layout/</span>                 <span class="comment"># AdminLayout, WizardLayout, SuperCustomerLayout</span>
+            └── <span class="folder">shared/</span>                 <span class="comment"># Reusable UI components</span></pre>
+    </section>
+
+    <!-- DATA MODEL -->
+    <section id="data-model">
+      <h2>Data Model</h2>
+
+      <h3>Implemented</h3>
+
+      <div class="model-card">
+        <h4>ApplicationUser <span class="badge">extends IdentityUser</span></h4>
+        <div class="fields">
+          <span class="field">FullName</span>
+          <span class="field">Roles: Admin / CIS / SuperCustomer / Customer</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>ImplementationType</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field">Name</span>
+          <span class="field">Description</span>
+          <span class="field">IsActive</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>Form</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field fk">ImplementationTypeId FK</span>
+          <span class="field">Title</span>
+          <span class="field">Status (Draft / Unlocked / Locked)</span>
+          <span class="field">CreatedAt</span>
+          <span class="field">UpdatedAt</span>
+        </div>
+        <p style="margin-top:10px;font-size:.85rem;color:var(--gray-600)">Lifecycle: Draft → Unlocked → Locked. Locked ↔ Unlocked is bidirectional. Changes to Locked forms queue a FormChangeQueue entry.</p>
+      </div>
+
+      <div class="model-card">
+        <h4>FormField</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field fk">FormId FK</span>
+          <span class="field">Label</span>
+          <span class="field">FieldType</span>
+          <span class="field">IsRequired</span>
+          <span class="field">SortOrder</span>
+          <span class="field">Options (JSON)</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>FormChangeQueue</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field fk">FormId FK</span>
+          <span class="field">ChangeType</span>
+          <span class="field">Status</span>
+          <span class="field">ProcessedAt?</span>
+          <span class="field">CreatedAt</span>
+        </div>
+        <p style="margin-top:10px;font-size:.85rem;color:var(--gray-600)">Entries processed nightly at 3AM EST by FormChangeProcessorService (ASP.NET BackgroundService).</p>
+      </div>
+
+      <div class="model-card">
+        <h4>FormProjectImpact</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field fk">FormId FK</span>
+          <span class="field fk">ProjectId FK</span>
+          <span class="field">ImpactDescription</span>
+          <span class="field">CreatedAt</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>ImportTemplate</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field">Name</span>
+          <span class="field">Description</span>
+          <span class="field">FileType</span>
+          <span class="field">CreatedAt</span>
+          <span class="field">UpdatedAt</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>ImportTemplateColumn</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field fk">ImportTemplateId FK</span>
+          <span class="field">SourceColumn</span>
+          <span class="field">TargetField</span>
+          <span class="field">IsRequired</span>
+          <span class="field">SortOrder</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>Category</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field fk">ParentCategoryId FK? (self-ref)</span>
+          <span class="field">Name</span>
+          <span class="field">IsActive</span>
+          <span class="field">SortOrder</span>
+        </div>
+        <p style="margin-top:10px;font-size:.85rem;color:var(--gray-600)">Self-referencing parent/child hierarchy. Managed via Admin panel.</p>
+      </div>
+
+      <div class="model-card">
+        <h4>ReferenceDataSet</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field">Name</span>
+          <span class="field">Description</span>
+          <span class="field">IsActive</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>ReferenceDataItem</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field fk">ReferenceDataSetId FK</span>
+          <span class="field">Value</span>
+          <span class="field">Label</span>
+          <span class="field">SortOrder</span>
+          <span class="field">IsActive</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>ProductType</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field">Name</span>
+          <span class="field">IsActive</span>
+          <span class="field badge">Many-to-many: ReferenceDataSet</span>
+        </div>
+      </div>
+
+      <div class="model-card">
+        <h4>UnitOfMeasure</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field">Name</span>
+          <span class="field">Abbreviation</span>
+          <span class="field">UnitCategory (Volume / Weight / Count)</span>
+          <span class="field">System (Metric / US / Universal)</span>
+          <span class="field">IsBaseUnit</span>
+          <span class="field">ToBaseMultiplier</span>
+          <span class="field">SortOrder</span>
+          <span class="field">IsActive</span>
+        </div>
+        <p style="margin-top:10px;font-size:.85rem;color:var(--gray-600)">Volume base unit: Liter. Weight base unit: Kilogram. Count base unit: Each. All <code>ToBaseMultiplier</code> values are relative to the base unit.</p>
+      </div>
+
+      <div class="model-card">
+        <h4>ImplementationProject</h4>
+        <div class="fields">
+          <span class="field pk">Id PK</span>
+          <span class="field">ProjectType</span>
+          <span class="field">CustomerName</span>
+          <span class="field">SalesforceAccountId?</span>
+          <span class="field">SalesforceProjectId?</span>
+          <span class="field fk">AssignedSpecialistId FK?</span>
+          <span class="field">Status</span>
+          <span class="field">CurrentStep</span>
+          <span class="field">CreatedAt</span>
+          <span class="field">UpdatedAt</span>
+        </div>
+      </div>
+
+      <h3 style="margin-top:32px;color:var(--gray-400)">Future / Planned</h3>
+      <p style="font-size:.88rem;color:var(--gray-600);margin-bottom:16px">The following entities were in the original project plan but have not yet been built. They remain as future-phase targets.</p>
+
+      <div class="model-card" style="border-color:var(--gray-200);opacity:.75">
+        <h4>Customers <span class="badge" style="background:var(--yellow-lt);color:var(--yellow)">Planned</span></h4>
+        <div class="fields"><span class="field">CompanyName</span><span class="field">ContactEmail</span><span class="field">SalesforceAccountId?</span><span class="field">Status</span></div>
+        <p style="margin-top:10px;font-size:.85rem;color:var(--gray-600)">Customer profile data currently lives inside Forms. A dedicated Customers table is planned for Phase 6.</p>
+      </div>
+
+      <div class="model-card">
+        <h4>Suppliers / Vendors <span class="badge" style="background:var(--green-lt);color:var(--green)">&#10003; Live</span></h4>
+        <div class="fields"><span class="field">Name</span><span class="field">Description</span><span class="field">IsActive</span><span class="field">SupplierId (Vendor)</span></div>
+        <p style="margin-top:10px;font-size:.85rem;color:var(--gray-600)">Managed manufacturer (Supplier) and seller (Vendor) entities. CSV import/export. Vendor optionally linked to a Supplier.</p>
+      </div>
+      <div class="model-card">
+        <h4>CatalogItemTypes / SubTypes / Fields <span class="badge" style="background:var(--green-lt);color:var(--green)">&#10003; Live</span></h4>
+        <div class="fields"><span class="field">Name</span><span class="field">SubTypes (cascade)</span><span class="field">FieldName</span><span class="field">FieldLabel</span><span class="field">FieldType</span><span class="field">IsRequired</span></div>
+        <p style="margin-top:10px;font-size:.85rem;color:var(--gray-600)">Hierarchical item classification with EAV custom fields per type (e.g. Hops → Alpha Acid %).</p>
+      </div>
+      <div class="model-card">
+        <h4>CatalogItems <span class="badge" style="background:var(--green-lt);color:var(--green)">&#10003; Live</span></h4>
+        <div class="fields"><span class="field">ItemName</span><span class="field">CatalogItemTypeId</span><span class="field">CatalogItemSubTypeId</span><span class="field">SupplierId</span><span class="field">VendorId</span><span class="field">VendorItemNumber</span><span class="field">PurchaseUomDescription</span><span class="field">PurchaseAmountPerUom</span><span class="field">PurchaseUomId</span><span class="field">ProgramId</span><span class="field">IsActive</span><span class="field">SortOrder</span></div>
+        <p style="margin-top:10px;font-size:.85rem;color:var(--gray-600)">14,000-item catalog. Server-side paginated table (50/page). Many-to-many ProductTypes. EAV field values. Bulk edit + CSV import/export.</p>
+      </div>
+
+      <div class="model-card" style="border-color:var(--gray-200);opacity:.75">
+        <h4>ProjectItems <span class="badge" style="background:var(--yellow-lt);color:var(--yellow)">Planned</span></h4>
+        <div class="fields"><span class="field">Section</span><span class="field">CustomName</span><span class="field">Uom</span><span class="field">ValidationStatus</span></div>
+      </div>
+
+      <div class="model-card" style="border-color:var(--gray-200);opacity:.75">
+        <h4>Products + PackageTypes <span class="badge" style="background:var(--yellow-lt);color:var(--yellow)">Planned</span></h4>
+        <div class="fields"><span class="field">ProductName</span><span class="field">ABV</span><span class="field">ContainerType</span><span class="field">VolumeUnit</span></div>
+      </div>
+
+      <div class="model-card" style="border-color:var(--gray-200);opacity:.75">
+        <h4>AuditLog + ExportRecords + FlexibleImportJobs <span class="badge" style="background:var(--yellow-lt);color:var(--yellow)">Planned</span></h4>
+        <div class="fields"><span class="field">Per-action changelog</span><span class="field">Export history</span><span class="field">Import job tracking</span></div>
+      </div>
+
+    </section>
+
+    <!-- PHASES -->
+    <section id="phases">
+      <h2>Development Phases</h2>
+
+      <div class="phase" id="phase-1">
+        <div class="phase-header">
+          <div class="phase-number">1</div>
+          <div>
+            <div class="phase-title">Solution Foundation &amp; Authentication <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Runnable skeleton with auth, navigation shell, and database</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Solution with 4 projects: <code>ImpWizard.Api</code>, <code>ImpWizard.Core</code>, <code>ImpWizard.Infrastructure</code>, <code>ImpWizard.Tests</code> (directories retain <code>EkosWizard.*</code> names; namespaces/assemblies use <code>ImpWizard.*</code>)</li>
+            <li>ASP.NET Core Identity with SQL Server; roles: <code>Admin</code>, <code>CIS</code>, <code>SuperCustomer</code>, <code>Customer</code></li>
+            <li>JWT auth middleware + CORS policy for React client</li>
+            <li>Docker Compose dev environment: API container + React client container + SQL Server container</li>
+            <li>EF Core migrations; DataSeeder: roles, admin user (<code>admin@impwizard.local</code>), Units of Measure seed data</li>
+            <li>React shell: login page, role-based routing, <code>AdminLayout</code> / <code>WizardLayout</code> / <code>SuperCustomerLayout</code></li>
+            <li><code>ICurrentUserService</code> resolves logged-in user role</li>
+            <li>Role-based route guards (API + React router)</li>
+          </ol>
+          <div class="deliverable">App runs in Docker. Users log in with role-based access. Admin layout and wizard shell render correctly.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-1a">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1a</div>
+          <div>
+            <div class="phase-title">Admin Data Management <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Full CRUD for all reference data entities via Admin panel</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Categories CRUD — self-referencing parent/child hierarchy; sortable; activate/deactivate</li>
+            <li>Reference Data Sets + Items CRUD — named data sets with ordered, activatable items</li>
+            <li>Product Types CRUD — name, active flag, many-to-many links to Reference Data Sets</li>
+            <li>Units of Measure CRUD — name, abbreviation, category (Volume/Weight/Count), system, base unit flag, <code>ToBaseMultiplier</code>; Volume base: Liter; Weight base: Kilogram; Count base: Each</li>
+            <li>All entities managed via shadcn/ui table + dialog/form UI in Admin panel</li>
+          </ol>
+          <div class="deliverable">Admin can manage all reference data without code changes. UoM conversions use correct base units.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-1b">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1b</div>
+          <div>
+            <div class="phase-title">Forms Management &amp; Lifecycle <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Create and manage intake forms with a controlled publish lifecycle</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Forms CRUD — title, implementation type, status badge</li>
+            <li>Form Fields management — type, label, required flag, sort order, options (JSON)</li>
+            <li>Form lifecycle: <strong>Draft → Unlocked → Locked</strong>; Locked ↔ Unlocked is bidirectional</li>
+            <li>Lock/Unlock button in Admin panel with confirmation; status badge updates immediately</li>
+            <li>Changes to Locked forms enqueue a <code>FormChangeQueue</code> entry for review</li>
+          </ol>
+          <div class="deliverable">Admins create and publish forms. Locked forms are protected; changes trigger review queue entries.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-1c">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1c</div>
+          <div>
+            <div class="phase-title">Import Templates <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Define and manage named column-mapping templates for data imports</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Import Templates CRUD — name, description, file type</li>
+            <li>Import Template Columns management — source column, target field, required flag, sort order</li>
+            <li>Admin panel page with expandable column detail per template</li>
+          </ol>
+          <div class="deliverable">Admins define reusable column mapping templates for structured data imports.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-1d">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1d</div>
+          <div>
+            <div class="phase-title">Form Change Review &amp; Background Processor <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Nightly background processing of form change queue; admin review UI</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><code>FormChangeProcessorService</code> — ASP.NET <code>BackgroundService</code> running nightly at 3AM EST</li>
+            <li>Processes <code>FormChangeQueue</code> entries: marks each as processed with timestamp</li>
+            <li>Admin "Form Change Review" page — displays pending queue entries</li>
+            <li>Nav badge shows count of unprocessed entries</li>
+          </ol>
+          <div class="deliverable">Form changes to locked forms are automatically processed nightly. Admins can review pending changes in real time.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-1e">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1e</div>
+          <div>
+            <div class="phase-title">Program Management <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Multi-program support: organize all implementation data by program; restrict CIS users to specific programs</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><code>Program</code> entity — Name, Description, Color (hex), IsActive, CreatedAt, UpdatedAt</li>
+            <li><code>UserProgramAccess</code> entity — links CIS users to specific programs (UserId + ProgramId, unique index). If a CIS user has ANY rows, they are restricted to only those programs' journeys and projects. No rows = unrestricted access.</li>
+            <li>Migration <code>AddPrograms</code> — creates Programs &amp; UserProgramAccess tables; adds nullable <code>ProgramId</code> FK (SetNull on delete) to ImplementationTypes, Forms, ImportTemplates, Projects</li>
+            <li>Migration <code>AddProgramToRefDataAndCategories</code> — adds nullable <code>ProgramId</code> FK (SetNull on delete) to ReferenceDataSets and Categories tables</li>
+            <li><code>ProgramsController</code> — full CRUD (Admin only); GET list accessible to CIS; assign/remove CIS users to programs; eligible-users endpoint for manage dialog</li>
+            <li>Admin Settings → <strong>Programs</strong> page — two-panel layout with color picker, active toggle, assigned item counts (Impl Types, Forms, Templates, Projects), and CIS restriction management dialog</li>
+            <li>Shared <code>ProgramSelect</code> component — color-dot dropdown used across all entity create/edit flows</li>
+            <li>Program selector added to: Implementation Types (create sheet + detail panel), Forms (create sheet + detail panel), Projects (create sheet), Import Templates (detail panel), Reference Data (detail panel), Categories (create sheet + detail panel)</li>
+            <li>Program color dot displayed in left-panel list for: Reference Data datasets and Categories</li>
+            <li>Frontend API hooks in <code>programs.ts</code> — getPrograms, getProgramDetail, createProgram, updateProgram, deleteProgram, assignUserToProgram, removeUserFromProgram, getProgramEligibleUsers</li>
+            <li><code>PUT /api/reference-data/{id}/program</code> endpoint added for dataset program assignment</li>
+          </ol>
+          <div class="deliverable">The wizard is now multi-functional. Programs segment all implementation data (including reference data and categories), and Admins can restrict CIS users to only specific programs' journeys and projects.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-1f">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1f</div>
+          <div>
+            <div class="phase-title">Meeting Catalog &amp; Resource Catalog <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Standalone admin catalog tables for reusable meeting and resource definitions; pre-fill Journey Editor items via copy-on-pick</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Two new DB tables: <code>MeetingCatalogEntries</code> and <code>ResourceCatalogEntries</code> — standalone reference tables with no foreign keys to other entities</li>
+            <li>Migration <code>20260315110000_AddJourneyCatalogs</code> — creates both catalog tables</li>
+            <li><code>MeetingCatalogController</code> (<code>api/meeting-catalog</code>) and <code>ResourceCatalogController</code> (<code>api/resource-catalog</code>) — full CRUD (Admin only)</li>
+            <li>Admin pages: Catalogs → <strong>Meeting Catalog</strong> and Catalogs → <strong>Resource Catalog</strong> — two-panel layout (list left, detail/edit right)</li>
+            <li>Journey Editor <code>AddItemSheet</code> — "Start from catalog" dropdown appears for Meeting and Resource item types; selecting an entry pre-fills all fields via copy-on-pick (no FK stored on the journey item)</li>
+            <li>Nav: two new items added to the Catalogs collapsible group in <code>AdminLayout</code></li>
+          </ol>
+          <div class="deliverable">Admins maintain reusable meeting and resource definitions. Journey editors can pre-fill new items from the catalog in one click; catalog entries remain independent reference data.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-1g">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1g</div>
+          <div>
+            <div class="phase-title">Meeting Types &amp; Resource Types Management <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Replace hardcoded Meeting Type and Resource Type dropdown arrays with DB-managed reference tables; admins control the lists via two new Catalog admin pages</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>New entities <code>MeetingType</code> and <code>ResourceType</code> (Id, Name, SortOrder, IsActive, CreatedAt, UpdatedAt)</li>
+            <li>Migration <code>20260315120000_AddMeetingAndResourceTypes</code> — creates both tables (no seed data; admin populates manually)</li>
+            <li><code>MeetingTypesController</code> (<code>api/meeting-types</code>) and <code>ResourceTypesController</code> (<code>api/resource-types</code>) — full CRUD; GET open to Admin+CIS, writes Admin-only</li>
+            <li>Admin pages: Catalogs → <strong>Meeting Types</strong> and Catalogs → <strong>Resource Types</strong> — two-panel layout (list left, detail/edit right with active toggle)</li>
+            <li>Meeting Catalog, Resource Catalog, Journey Editor (Add Item &amp; Edit Item sheets) — Meeting Type and Resource Type dropdowns now pull from the DB instead of hardcoded arrays</li>
+          </ol>
+          <div class="deliverable">Meeting and resource type vocabularies are fully admin-controlled. No code changes needed to add, rename, or retire a type — just toggle active/inactive in the UI.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-1h">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1h</div>
+          <div>
+            <div class="phase-title">Audit Log + User Profile <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Durable audit log for all user mutations; filterable admin view; project changelog; portal history; self-service profile with timezone, email, password</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>New entity <code>AuditLogEntry</code> — snapshot pattern (no FK navigation properties), <code>long</code> PK identity, indexed on Timestamp/UserId/ProjectId/Action</li>
+            <li>Migration <code>20260315130000_AddAuditLogAndUserProfile</code> — creates <code>AuditLogEntries</code> table + adds <code>Title</code>, <code>Organization</code>, <code>TimeZoneId</code> to <code>AspNetUsers</code></li>
+            <li><code>IAuditService</code> / <code>AuditService</code> (scoped) — accepts <code>ClaimsPrincipal</code>, extracts userId/fullName/role from JWT; wraps write in try/catch, never throws, uses own <code>SaveChangesAsync()</code></li>
+            <li><code>AuditController</code> (<code>api/audit</code>, Admin+CIS only) — paginated GET with 7 filters, CSV export (10k row cap via CsvHelper), project changelog endpoint</li>
+            <li><code>ProfileController</code> (<code>api/profile</code>, all roles) — GET profile, PUT basic info (FullName/Title/Organization/TimeZoneId), PUT email (requires current password, forces logout), PUT password</li>
+            <li><code>PortalController</code> — added <code>GET /api/portal/projects/{id}/history</code> filtering <code>UserRole IN (SuperCustomer, Customer)</code> only; audit calls on invite/remove/form-submit</li>
+            <li>All 21 existing controllers updated with IAuditService injection and audit calls after each SaveChangesAsync</li>
+            <li>Admin Audit Log page — full rewrite: server-side filter bar (date range, user search, role, action prefix, entity type, project ID), paginated table with colored action badges, Export CSV button</li>
+            <li>Timestamps displayed in the logged-in user&apos;s saved timezone via <code>formatAuditTimestamp(isoUtc, tzId?)</code> with Intl.DateTimeFormat + try/catch fallback</li>
+            <li>ProjectDetailPage — new <strong>Changelog</strong> tab (lazy-loaded, all roles, reverse-chronological)</li>
+            <li>PortalProjectPage — new <strong>History</strong> tab for SC/Customer only (Admin/CIS hidden via <code>showHistory = !isAdminOrCis</code>)</li>
+            <li>Shared <code>ProfilePage</code> at <code>/admin/profile</code> and <code>/portal/profile</code> — three cards: Basic Info (name, title, org, IANA timezone select), Email Change (requires current password → forces logout), Password Change</li>
+            <li>&ldquo;My Profile&rdquo; item added to user dropdown in both AdminLayout and ProjectPortalLayout</li>
+          </ol>
+          <div class="deliverable">Every mutation in the system is durably logged. Admins can search, filter, and export the full audit trail. Each project has a changelog visible to all stakeholders. Every user has a self-service profile page to manage their identity and timezone.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1i — Form Field Enhancements -->
+      <div class="phase" id="phase-1i">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1i</div>
+          <div>
+            <div class="phase-title">Form Field Enhancements <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Form clone/duplicate, auto-fill values, Item Catalog dropdown source, and file submission flag</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Form Clone/Duplicate</strong> — <code>POST /api/forms/{id}/duplicate</code> copies the form and all fields including all properties: DataSourceFormId, DataSourceFieldId, CrossFormPreFillFormId, CrossFormPreFillFieldId, ImportTemplateHeader, AllowCustomValue, AutoFillValue, and ProgramId</li>
+            <li><strong>Auto-Fill Value</strong> — new <code>AutoFillValue</code> string property on <code>FormField</code>; migration <code>20260317000002_AddFormFieldAutoFillValue</code>; backend enforces the value on both SaveDraft and SubmitForm (client-supplied value for that field is discarded and replaced server-side); portal renders the field read-only with an "Auto-filled" label</li>
+            <li><strong>Auto-Fill UI</strong> — text input added to the field editor panel in FormEditorPage; uses <code>clearAutoFillValue</code> flag to remove it; empty = disabled</li>
+            <li><strong>Item Catalog dropdown source</strong> — new <code>"ItemCatalog"</code> data source type added to <code>DATA_SOURCE_TYPES</code>; <code>GetDropdownOptions</code> case returns active catalog items sorted A–Z; <code>FieldDataSourcePicker</code> shows the option with a description blurb; a <strong>Column Selector</strong> lets the form designer choose which catalog field drives the dropdown label (ItemName, Supplier, VendorItemNumber, etc.) via a <code>DataSourceColumn</code> property on <code>FormField</code>; field editor panel shows the picker only when data source is ItemCatalog; portal respects the column when rendering options</li>
+            <li><strong>Allow File Submission flag</strong> — new <code>AllowFileSubmission</code> bool on <code>Form</code> (default false); toggle added to FormsPage detail panel alongside the Active switch; exposed in all form DTOs and portal <code>FormWithFieldsDto</code></li>
+          </ol>
+          <div class="deliverable">Forms can be cloned in one click preserving all field config. Fields can be auto-filled server-side. The Item Catalog is now a dropdown data source with a configurable column selector. Forms can be flagged to accept file uploads instead of manual entry. Deployed 2026-03-18.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1j — Bulk File Submission -->
+      <div class="phase" id="phase-1j">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1j</div>
+          <div>
+            <div class="phase-title">Bulk File Submission <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Customers upload CSV or Excel files in place of manual form entry; CIS/Admin reviews and finalizes in a spreadsheet editor</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Data model</strong> — three new entities: <code>BulkSubmission</code> (one per uploaded file; Status: Uploaded → InReview → Finalized), <code>BulkSubmissionRow</code> (one per CSV/XLSX row; Status: Pending | Approved | Rejected | Deleted; stores raw data as JSON), <code>BulkSubmissionCell</code> (one per field per row — the working editor values). Migration <code>20260318000000_AddBulkSubmissions</code></li>
+            <li><strong>File parsing</strong> — ExcelDataReader + ExcelDataReader.DataSet NuGet packages; unified code path for both CSV and XLSX via DataSet API</li>
+            <li><strong>BulkSubmissionsController</strong> at <code>api/portal/projects/{projectId}/forms/{faid}/bulk</code> (Admin, CIS, SuperCustomer, Customer with per-role checks):
+              <ul>
+                <li><code>POST /upload</code> — parse file, create BulkSubmission + BulkSubmissionRows, set assignment InProgress</li>
+                <li><code>GET /</code> — return active bulk submission with all rows and cells</li>
+                <li><code>PUT /column-mapping</code> — map raw headers → form field IDs; create BulkSubmissionCells pre-populated from raw data; inject auto-fill values; set status InReview</li>
+                <li><code>PUT /rows/{rowId}/cell</code> — update a single cell value</li>
+                <li><code>PUT /rows/batch-cells</code> — bulk update same field across multiple rows (smart fill)</li>
+                <li><code>DELETE /rows/{rowId}</code> — hard delete row from staging</li>
+                <li><code>PUT /rows/{rowId}/reject</code> — reject row with reason</li>
+                <li><code>PUT /rows/{rowId}/restore</code> — restore rejected row to Pending</li>
+                <li><code>POST /finalize</code> — create FormSubmission + FormSubmissionAnswers per Pending row; set assignment Submitted; set BulkSubmission Finalized; return summary</li>
+              </ul>
+            </li>
+            <li><strong>Portal UI</strong> — <code>PortalFormFillPage</code> shows a mode picker when <code>allowFileSubmission=true</code> and no existing submission: "Fill Out Manually" or "Upload a File"; upload mode shows a file drop zone; after upload shows status card ("Pending Review"); after finalize shows approved/rejected row counts with per-row rejection reasons</li>
+            <li><strong>Admin review page</strong> — <code>BulkSubmissionReviewPage</code> at <code>/admin/projects/:projectId/bulk-review/:faid</code>: column mapping section with auto-match by field label and per-header select; spreadsheet-style grid with inline click-to-edit cells; smart fill popup (after editing a cell, offers to apply the same value to other rows with that field empty — checkboxes + Select All); per-row reject (with reason dialog), restore, and delete actions; Finalize button with result dialog</li>
+            <li><strong>ProjectDetailPage</strong> — new "File Upload" column in the Forms tab shows status badge (Uploaded / In Review / Finalized) + "Open Review" button for any assignment with an active bulk submission</li>
+            <li><strong>IDOR security</strong> — all row-level endpoints use subquery <code>_db.ProjectFormAssignments.Any(a =&gt; a.Id == faid &amp;&amp; a.ProjectId == projectId)</code> to safely scope operations without EF navigation chain translation issues</li>
+          </ol>
+          <div class="deliverable">Customers can upload a CSV or Excel file as a form submission. CIS/Admin maps columns, edits cells inline, uses smart fill to propagate repeated values, rejects bad rows with reasons, and finalizes — creating one FormSubmission per approved row. Deployed 2026-03-18.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1k — Packaging Types Catalog -->
+      <div class="phase" id="phase-1k">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1k</div>
+          <div>
+            <div class="phase-title">Packaging Types Catalog <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Structured admin catalog of packaging configurations (e.g. "Case - 4x6 - 16oz - Can") that feeds portal dropdowns</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Data model</strong> — four new entities: <code>PackagingType</code> (e.g. Case, Keg, Single; has <code>HasCount</code>, <code>HasStyle</code>, <code>ShowTypeInLabel</code> flags), <code>PackagingVolume</code> (16oz, 750ml, 30L…), <code>PackagingStyle</code> (Can, Bottle…), <code>PackagingEntry</code> (composed FK record: TypeId + Count? + VolumeId + StyleId?). All with SortOrder, IsActive, CreatedAt, UpdatedAt. Migration <code>AddPackagingCatalog</code>; all FKs on PackagingEntry use <code>DeleteBehavior.Restrict</code> to prevent orphan deletions.</li>
+            <li><strong>Label computation</strong> — <code>PackagingEntry</code> label is computed at query time (never stored): <code>"Type - Count - Volume - Style"</code> with Count/Style omitted when null; Type name omitted when <code>ShowTypeInLabel = false</code> (e.g. kegs don't need "Keg" prefix).</li>
+            <li><strong>PackagingController</strong> at <code>api/packaging</code>: four sub-resource groups (<code>/types</code>, <code>/volumes</code>, <code>/styles</code>, <code>/entries</code>) each with GET (list), POST (create), PUT/{id} (update), DELETE/{id} (guard: 400 if any entries reference the record). Auth: read = Admin+CIS; write = Admin only.</li>
+            <li><strong>CSV import/export</strong> — <code>POST api/packaging/entries/import</code> accepts CSV paste or file upload; upserts entries matching on type+count+volume+style combination; template downloadable at <code>api/packaging/entries/template</code> (anonymous access). Export respects active-only filter.</li>
+            <li><strong>Form integration</strong> — <code>"PackagingType"</code> added to <code>GetDataSourceName()</code> in <code>FormsController</code>; <code>GetDropdownOptions()</code> in <code>PortalController</code> queries active <code>PackagingEntries</code> ordered by SortOrder/Type/Volume and returns computed labels.</li>
+            <li><strong>Frontend — Admin page</strong> (<code>/admin/catalog/packaging</code>): two tabs — <em>Entries</em> (paginated table with Label, Type, Volume, Style, Count, Sort, Active columns; new-entry sheet with live label preview; Count/Style inputs conditionally shown based on selected type's flags) and <em>Components</em> (three-column card layout for Types, Volumes, Styles with inline edit sheets).</li>
+            <li><strong>Frontend — Nav</strong> — "Packaging Types" link added to the Catalog section of AdminLayout using the <code>Tag</code> icon.</li>
+          </ol>
+          <div class="deliverable">Admins build a packaging catalog from reusable Type/Volume/Style components. Entries show computed labels like "Case - 4x6 - 16oz - Can". The catalog is importable via CSV paste or file. Any form field can use "PackagingType" as a dropdown source to expose the computed labels in the portal. Deployed 2026-03-29.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-2">
+        <div class="phase-header">
+          <div class="phase-number">2</div>
+          <div>
+            <div class="phase-title">Audit Log / Changelog Engine</div>
+            <div class="phase-goal">Every meaningful user action is recorded and visible to all roles</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><code>IAuditService</code> in Core: <code>LogAsync</code>, <code>GetForProjectAsync</code>, <code>GetForCustomerAsync</code></li>
+            <li>Implement <code>AuditService</code> in Infrastructure — async insert, wraps in try/catch, never throws</li>
+            <li><code>AuditLogEntry</code> builder helper to avoid repetition at call sites</li>
+            <li>Always called after the DB write succeeds, outside any transaction</li>
+            <li>Changelog React component: chronological feed, avatar initials, role badge, timestamp, human-readable diff for edits</li>
+            <li>Accessible from project detail page (tab), admin view, and customer's own project view</li>
+            <li>"Edit on behalf" actions attributed to the specialist in the log, not the customer</li>
+          </ol>
+          <div class="deliverable">All actions logged. Any user can see the full history of a project at any time.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-3">
+        <div class="phase-header">
+          <div class="phase-number">3</div>
+          <div>
+            <div class="phase-title">Salesforce Integration (Read + Write)</div>
+            <div class="phase-goal">Auto-populate customer profile from SF; push status and export events back</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Define <code>ISalesforceService</code>: FindByEmailAsync, GetOpportunityByAccountIdAsync, SyncCustomerAsync, SyncProjectStatusAsync, LogExportEventAsync</li>
+            <li>Implement with OAuth2 Connected App (client credentials flow); HttpClient-based REST calls</li>
+            <li>Email blur in Step 1 → <code>FindByEmailAsync</code> → SF Contact → Account → Opportunity → pre-fill banner</li>
+            <li>Push hooks: Step 1 save → SyncCustomerAsync, status change → SyncProjectStatusAsync, export → LogExportEventAsync</li>
+            <li><code>appsettings.json</code> <code>Salesforce.Enabled</code> flag; <code>NoOpSalesforceService</code> when false</li>
+            <li>SF IDs stored on Customer row; "Salesforce Linked" badge in project header</li>
+            <li>All SF sync actions write to AuditLog</li>
+          </ol>
+          <div class="deliverable">Email auto-match pre-fills wizard from SF Opportunity/Account. Status and export events push back to SF.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-4">
+        <div class="phase-header">
+          <div class="phase-number">4</div>
+          <div>
+            <div class="phase-title">QuickBooks File Import</div>
+            <div class="phase-goal">Upload a QB export, map usable fields, flag gaps, optionally import</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Available in Step 1 and from the Internal Admin view</li>
+            <li>Upload UI: drag-and-drop zone accepting <code>.csv</code> and <code>.iif</code></li>
+            <li>CSV parsed with CsvHelper; IIF parsed with custom tokenizer (<code>!CUST</code>/<code>CUST</code> record types)</li>
+            <li>Column mapping engine maps QB fields → wizard fields; flags missing required fields</li>
+            <li>Preview UI: green check (mapped + value), yellow warning (mapped, empty value), red flag (required, no mapping)</li>
+            <li>Inline-fixable flagged fields before confirming import</li>
+            <li>On confirm: upsert Customer, write QuickBooksImportLog, write AuditLog entry</li>
+          </ol>
+          <div class="deliverable">QB export pre-fills what it can, flags the rest, allows inline fixes. Action logged.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-5">
+        <div class="phase-header">
+          <div class="phase-number">5</div>
+          <div>
+            <div class="phase-title">Item Catalog &amp; Classification</div>
+            <div class="phase-goal">Full admin catalog with 14,000+ items, suppliers, vendors, item types, and dynamic custom fields</div>
+          </div>
+        </div>
+        <div class="phase-body" style="position:relative">
+          <span class="badge" style="position:absolute;top:0;right:0;background:var(--green-lt);color:var(--green)">&#10003; Complete</span>
+          <ol>
+            <li><strong>Suppliers &amp; Vendors</strong> — Admin CRUD pages with CSV import (upsert by name) and CSV export. Vendor optionally linked to a Supplier.</li>
+            <li><strong>Catalog Items</strong> (<code>CatalogItems</code> table) — ItemName, Program, IngredientType, SubType, Supplier, Vendor, VendorItemNumber, PurchaseUomDescription, PurchaseAmountPerUom, PurchaseUom, IsActive, SortOrder, many-to-many ProductTypes, many-to-many IngredientCategories, and dynamic EAV custom field values.</li>
+            <li><strong>Ingredient Types &amp; Sub-Types</strong> — <code>CatalogItemTypes</code> and <code>CatalogItemSubTypes</code> tables; admin three-panel page (<code>/admin/catalog/ingredient-types</code>) with Types | Sub-Types | Fields cards side-by-side; clicking a Type populates the Sub-Types and Fields panels. FK from <code>CatalogItems</code> to <code>CatalogItemTypes</code> uses <code>DeleteBehavior.Restrict</code> (controller guards deletion when items reference the type); FK to <code>CatalogItemSubTypes</code> uses <code>SetNull</code>.</li>
+            <li><strong>Per-type custom fields (EAV)</strong> — <code>CatalogItemTypeFields</code> defines named fields per type (FieldName machine key, FieldLabel display label, FieldType = Text | Number, IsRequired, SortOrder, <strong>IsActive</strong> for retire/restore). Values stored in <code>CatalogItemFieldValues</code> (one row per item × field). Fields can be retired (IsActive = false) instead of deleted — values are preserved and re-surface if the field is re-activated. <code>PUT api/catalog/{id}/field-values</code> does replace-on-write (delete + re-insert non-empty values). Export CSV includes dynamic columns — one per active field across the types present in the result set, blank for items of other types.</li>
+            <li><strong>Full-page paginated table</strong> (50/page, server-side) — search by name, filter by Program / Ingredient Type / Supplier / Vendor / ProductType / active status. Lightweight <code>BuildQuery()</code> for list/export; <code>BuildDetailQuery()</code> (with <code>ThenInclude</code> chains for type fields + field values) for single-item operations.</li>
+            <li><strong>Bulk edit</strong> — Select multiple rows → bulk-change Program, Supplier, Vendor, or Active status in one request.</li>
+            <li><strong>CSV import dialog</strong> — paste-CSV textarea as the primary input (file upload as secondary); column reference table with "Copy template" button; live parse preview showing row count; unknown columns silently ignored (custom fields must be pre-created and set via the edit sheet). Export respects active filters and appends dynamic field columns.</li>
+            <li><strong>Dynamic field inputs in item sheet</strong> — selecting an Ingredient Type renders a bordered "Type Fields" section with inputs for each active field; type change clears field values; fields saved to <code>field-values</code> endpoint alongside the main item update.</li>
+            <li>Routes: <code>/admin/catalog</code>, <code>/admin/catalog/ingredient-types</code>, <code>/admin/settings/suppliers</code>, <code>/admin/settings/vendors</code></li>
+          </ol>
+          <div class="deliverable">Admins build and maintain a catalog with full supplier/vendor/type hierarchy, retire-safe EAV custom fields, bulk editing, and CSV import/export with dynamic field columns. Deployed 2026-03-14; extended with Ingredient Types, custom fields, and import dialog improvements 2026-03-30.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-6">
+        <div class="phase-header">
+          <div class="phase-number">6</div>
+          <div>
+            <div class="phase-title">Wizard Steps 1 &amp; 2 — Profile + Operational Setup</div>
+            <div class="phase-goal">Customer completes profile with SF/QB pre-fill options and operational setup</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Step 1</strong>: Email blur → SF lookup, "Import from QuickBooks" button, manual entry always available</li>
+            <li>Producer type selection drives catalog filtering for the entire wizard</li>
+            <li>On save: upsert Customer, create ImplementationProject, SyncCustomerAsync, AuditLog</li>
+            <li><strong>Step 2</strong>: Business units, storage locations, preferred UOMs, category selections, packaging flags — stored as JSON</li>
+            <li>Auto-save every 30 seconds + on step navigation</li>
+            <li>Progress bar shows completed / current / upcoming steps</li>
+          </ol>
+          <div class="deliverable">Profile pre-filled from best available source. Operational data persists. All changes logged.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-7">
+        <div class="phase-header">
+          <div class="phase-number">7</div>
+          <div>
+            <div class="phase-title">Products &amp; Package Types — Flexible Uploader</div>
+            <div class="phase-goal">Import products and package types from any structured spreadsheet</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Accepts <code>.xlsx</code>, <code>.xls</code>, <code>.csv</code> from any source (supplier price list, ERP export, implementation template)</li>
+            <li>Shows first 5 rows as preview immediately after upload; user selects header row</li>
+            <li>Column mapping: detected headers (left) → target fields (right); drag-and-drop or dropdown assignment</li>
+            <li>Save mapping as named template ("My Distributor's Format") for reuse on future uploads</li>
+            <li>Import preview: green/yellow/red per field per row; user checks/unchecks rows before confirming</li>
+            <li>On confirm: insert Products + PackageTypes, write FlexibleImportJob, write AuditLog</li>
+            <li>Available during implementation wizard AND post go-live (bulk import mode)</li>
+          </ol>
+          <div class="deliverable">Any spreadsheet → mapped, previewed, and imported. Works during onboarding and post go-live. All imports logged.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-8">
+        <div class="phase-header">
+          <div class="phase-number">8</div>
+          <div>
+            <div class="phase-title">Wizard Step 3 — Item Search &amp; Selection</div>
+            <div class="phase-goal">Searchable, producer-type-aware catalog with quick-add and drag-and-drop</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Producer type pre-set from Step 1 (changeable); category filter chips dynamically loaded</li>
+            <li>Keyword FTS search with 300ms debounce; "Commonly Ordered" badge items surface first</li>
+            <li>"Add" button → item appears in Selected Items panel (right) under correct section</li>
+            <li>@dnd-kit drag-and-drop: reorder within section + move between sections</li>
+            <li>Duplicate prevention: toast "Already added to [Section Name]"</li>
+            <li>Every add/remove/reorder persists to DB immediately + AuditLog entry</li>
+          </ol>
+          <div class="deliverable">Customer finds and organizes items using producer-type-filtered FTS. All selection changes logged.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-9">
+        <div class="phase-header">
+          <div class="phase-number">9</div>
+          <div>
+            <div class="phase-title">Wizard Step 4 — Inline Editing (Staging Area)</div>
+            <div class="phase-goal">Full-page staging view for editing every selected item before validation</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Items grouped by section in an editable grid</li>
+            <li>Inline-editable per row: display name, UOM (dropdown), pack size, notes, customer SKU</li>
+            <li>Changes persist on blur; old/new values captured in AuditLog</li>
+            <li>Move-between-section dropdown, drag-and-drop reorder preserved from Step 3</li>
+            <li>"Add custom item" creates a ProjectItem with <code>CatalogItemId = null</code></li>
+          </ol>
+          <div class="deliverable">Every item fully editable. All edits logged with before/after values.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-10">
+        <div class="phase-header">
+          <div class="phase-number">10</div>
+          <div>
+            <div class="phase-title">Wizard Step 5 — Validation Engine</div>
+            <div class="phase-goal">Pre-export validation with human-readable errors and inline highlights</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><code>IValidationService.ValidateProjectAsync → ValidationResult</code></li>
+            <li>MVP rules: UOM required, Category required, no duplicates (ItemName+UOM), no inactive catalog items, profile complete, at least one item selected</li>
+            <li>Products: ProductName + Type required; each product needs ≥1 PackageType with Volume + ContainerType</li>
+            <li>Sticky validation banner: grouped human-readable messages ("3 items are missing unit of measure")</li>
+            <li>Inline row highlights: red border + warning icon on affected rows</li>
+            <li>Export button disabled until <code>IsValid = true</code>; re-validates on every edit (debounced)</li>
+            <li>"Validation run" action written to AuditLog</li>
+          </ol>
+          <div class="deliverable">All pre-export errors surfaced with clear messaging. Export blocked until clean.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-11">
+        <div class="phase-header">
+          <div class="phase-number">11</div>
+          <div>
+            <div class="phase-title">Wizard Step 6 — XLSX Export</div>
+            <div class="phase-goal">One-click download of import-ready Excel files</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><code>IExportService.GenerateExportAsync → ExportResult { FileName, FileBytes }</code></li>
+            <li>ClosedXML: one worksheet per section + separate sheets for Products and Package Types</li>
+            <li>Columns ordered per Ekos import template; frozen/bold header row</li>
+            <li>Timestamped filename: <code>{CompanyName}_EkosSetup_{yyyyMMdd_HHmm}.xlsx</code></li>
+            <li>File streamed to browser via API endpoint; React triggers download</li>
+            <li>ExportRecord written; FileVersion incremented; <code>LogExportEventAsync</code> to Salesforce</li>
+            <li>AuditLog: "Export v3 generated — 156 items, 42 products, 87 package types"</li>
+            <li>Export History section shows all previous exports with timestamps and version numbers</li>
+          </ol>
+          <div class="deliverable">Complete, import-ready .xlsx in one click. Export logged in changelog and Salesforce.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-12">
+        <div class="phase-header">
+          <div class="phase-number">12</div>
+          <div>
+            <div class="phase-title">Post-Implementation Bulk Import Mode</div>
+            <div class="phase-goal">The wizard remains useful after go-live for ongoing supplier imports</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Project status <code>PostImplementation</code> unlocks a permanent "Bulk Import" entry point in navigation</li>
+            <li>Flexible Product/Item Importer (Phase 7) fully available; saved column mapping templates reused</li>
+            <li>Import batches labeled and stored separately from original implementation data (e.g., "BSG Order Guide — March 2026")</li>
+            <li>Batch validated and exported as a standalone <code>.xlsx</code></li>
+            <li>All post-implementation imports appear in project changelog; visible in admin view</li>
+          </ol>
+          <div class="deliverable">The tool lives beyond implementation. Customers bulk import supplier items at any time with the same guided experience.</div>
+        </div>
+      </div>
+
+      <div class="phase" id="phase-13">
+        <div class="phase-header">
+          <div class="phase-number">13</div>
+          <div>
+            <div class="phase-title">Internal Admin View</div>
+            <div class="phase-goal">Implementation specialists can monitor, assist, and manage all customer projects</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><code>/admin/projects</code> — paginated list: customer name, producer type, status, step progress, go-live date, export count</li>
+            <li><code>/admin/projects/{id}</code> — full project view with edit access to all steps on behalf of customer</li>
+            <li>Filter/search by: customer name, producer type, status, go-live date range</li>
+            <li>Project status management: Draft → In Progress → Ready for Import → Complete → Post-Implementation</li>
+            <li>Export history per project with re-download</li>
+            <li>Changelog tab: full audit log per project visible to all roles</li>
+            <li>"Edit on behalf of customer" clearly labeled; edits attributed to specialist in AuditLog</li>
+          </ol>
+          <div class="deliverable">Internal team has full visibility, control, and audit transparency over every project.</div>
+        </div>
+      </div>
+    </section>
+
+      <!-- Phase 14 — Journey Builder -->
+      <div class="phase" id="phase-14">
+        <div class="phase-header">
+          <div class="phase-number">14</div>
+          <div>
+            <div class="phase-title">Journey Builder <span class="badge badge-done">Done</span></div>
+            <div class="phase-goal">Admins define reusable journey templates (stages → items) that drive the customer experience</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Data model: <code>Journey</code>, <code>JourneyStage</code> (StageCategory: Standard | PostGoLive, Color, Icon), <code>JourneyItem</code> (polymorphic: Meeting | Resource | FormAssignment)</li>
+            <li><code>JourneysController</code> — full CRUD for journeys, stages, items; stage + item reorder endpoints; Admin writes, CIS read-only</li>
+            <li><code>JourneysPage.tsx</code> — split-panel list with journey detail; "New Journey" sheet</li>
+            <li><code>JourneyEditorPage.tsx</code> — stage accordion with color/icon picker, StageCategory toggle, item cards with type badges, item edit Sheet with conditional fields per ItemType</li>
+            <li>Template → Instance separation: editing a journey template never affects already-instantiated project rows</li>
+          </ol>
+          <div class="deliverable">Admins can build and publish journey templates before assigning them to projects.</div>
+        </div>
+      </div>
+
+      <!-- Phase 15 — Customer Project Portal -->
+      <div class="phase" id="phase-15">
+        <div class="phase-header">
+          <div class="phase-number">15</div>
+          <div>
+            <div class="phase-title">Customer Project Portal <span class="badge badge-done">Done</span></div>
+            <div class="phase-goal">Customers see their project(s) with a journey stepper and tabbed content; Admin/CIS can view identically</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Instance layer: <code>ProjectJourneyAssignment</code>, <code>ProjectMeeting</code>, <code>ProjectResource</code>, <code>ProjectFormAssignment</code></li>
+            <li><code>ProjectsController</code> extensions: assign-journey (copy-down instantiation), meeting/resource/form-assignment CRUD, user access CRUD, stage progress endpoint</li>
+            <li><code>PortalController</code> — customer-facing endpoints; <code>CanAccessProject()</code> gate uses <code>ProjectUserAccess</code> for Customer/SuperCustomer; Admin/CIS bypass</li>
+            <li><code>ProjectPortalLayout.tsx</code> — clean top navbar with avatar dropdown, no sidebar</li>
+            <li><code>PortalProjectListPage.tsx</code> — project cards with mini JourneyProgressStepper</li>
+            <li><code>PortalProjectPage.tsx</code> — project hero with full stage stepper + 4 tabs: Trainings, Resources, Data Submissions, Post Go-Live</li>
+            <li><code>PortalTrainingsTab</code> — meetings split Upcoming/Past; Join Meeting + View Recording buttons</li>
+            <li><code>PortalResourcesTab</code> — Google Slides → iframe embed via <code>/embed</code> URL; others → tracked open</li>
+            <li><code>PortalFormsTab</code> — form list with status badges; Start/Continue buttons</li>
+            <li><code>PortalPostGoLiveTab</code> — CustomerSuccess/TechnicalSupport support cards + PostGoLive stage resources</li>
+            <li>Role-based post-login redirect: Admin/CIS → <code>/admin</code>; SuperCustomer/Customer → <code>/portal</code></li>
+            <li>Security: Customer/SuperCustomer blocked from <code>/admin</code> via ProtectedRoute</li>
+          </ol>
+          <div class="deliverable">Customers and SuperCustomers can view their project status, join meetings, access resources, and track form submissions.</div>
+        </div>
+      </div>
+
+      <!-- Phase 16 — SuperCustomer Powers -->
+      <div class="phase" id="phase-16">
+        <div class="phase-header">
+          <div class="phase-number">16</div>
+          <div>
+            <div class="phase-title">SuperCustomer Powers <span class="badge badge-done">Done</span></div>
+            <div class="phase-goal">SuperCustomers can invite customers, manage project team membership, and assign form submissions</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><code>ProjectUserAccess</code> entity — links Customer/SuperCustomer users to projects with unique index on (ProjectId, UserId)</li>
+            <li>Portal team endpoints: <code>GET/POST/DELETE /api/portal/projects/{id}/team</code> and <code>PUT /api/portal/projects/{id}/forms/{faid}/assign</code></li>
+            <li><code>PortalTeamTab.tsx</code> — Team tab visible to SuperCustomer/Admin/CIS only; shows current members with role badges; "Add Existing" sheet (search Customer/SuperCustomer users); "Invite New" sheet (create account + add to project, shows generated credentials); Remove member action</li>
+            <li>Form assignment dropdown on Team tab — assign any form to a specific team member</li>
+            <li>Admin/CIS can remove any member; SuperCustomer can only remove Customer members</li>
+          </ol>
+          <div class="deliverable">SuperCustomers can self-manage their project team and delegate form responsibilities.</div>
+        </div>
+      </div>
+
+      <!-- Phase 17 — Form Fill UI -->
+      <div class="phase" id="phase-17">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">17</div>
+          <div>
+            <div class="phase-title">Form Fill UI <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Customers fill out assigned forms in a dedicated UI with draft save, submit, cross-form prefill, and file upload options</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Entities: <code>FormSubmission</code> (Status: Draft | Submitted, SubmittedAt), <code>FormSubmissionAnswer</code> (FormFieldId FK, Value string)</li>
+            <li>Portal endpoints: <code>GET/POST/PUT /api/portal/projects/{id}/forms/{faid}/submission</code> (draft save); <code>PUT .../submit</code> (finalize); <code>GET /api/portal/dropdown-options</code> for all data source types; <code>GET /api/portal/projects/{id}/cross-form-data</code> for cross-form prefill and dropdown</li>
+            <li><code>PortalFormFillPage.tsx</code> — full field renderer supporting Text, Number, Date, Textarea, Checkbox, Dropdown (static data source + ProjectSubmission cross-form), Combobox (allowCustomValue), read-only submitted view, auto-fill read-only fields</li>
+            <li>Cross-form prefill: fields configured with <code>CrossFormPreFillFormId/FieldId</code> auto-populate on page load from the most recent submission on that project</li>
+            <li>Data source types supported in portal dropdowns: ReferenceData, ProductType, UnitOfMeasure, Category, ItemCategory, ItemCatalog, ProjectSubmission</li>
+            <li>Auto-fill enforcement: fields with <code>AutoFillValue</code> are shown read-only in the portal; the server discards any client-supplied value for those fields and injects the configured value on save/submit</li>
+            <li>File submission mode: when <code>allowFileSubmission=true</code> and no manual submission exists, portal shows a mode picker ("Fill Out Manually" / "Upload a File"); see Phase 1j for full bulk upload flow</li>
+            <li>Admin: Submissions tab in ProjectDetailPage shows all submitted answers in a tabular view with inline cell editing</li>
+          </ol>
+          <div class="deliverable">Customers can complete and submit data collection forms from within the portal, with support for draft saving, cross-form data prefill, dropdown data sources, auto-filled fields, and file upload as an alternative to manual entry. Deployed 2026-03-18.</div>
+        </div>
+      </div>
+
+      <!-- Phase 18 — Tracking & Activity -->
+      <div class="phase" id="phase-18">
+        <div class="phase-header">
+          <div class="phase-number">18</div>
+          <div>
+            <div class="phase-title">Tracking &amp; Activity <span class="badge badge-done">Done</span></div>
+            <div class="phase-goal">Track resource views and meeting link clicks; surface an activity dashboard for Admin/CIS</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Entities: <code>ResourceViewEvent</code>, <code>MeetingLinkClickEvent</code> (bigint PKs, composite indexes on (ResourceId/MeetingId + UserId) and (ProjectId + ViewedAt/ClickedAt))</li>
+            <li>Portal click/view endpoints: <code>POST /api/portal/projects/{id}/resources/{rid}/view</code>, <code>POST /api/portal/projects/{id}/meetings/{mid}/click</code></li>
+            <li>Activity summary endpoint: <code>GET /api/projects/{id}/activity</code></li>
+            <li>Activity tab in <code>ProjectDetailPage.tsx</code> — click/view counts per resource + meeting, form status summary</li>
+            <li>Wire tracking calls in PortalResourcesTab and PortalTrainingsTab on open/join actions</li>
+          </ol>
+          <div class="deliverable">Implementation specialists can see engagement metrics per project to identify blocked customers.</div>
+        </div>
+      </div>
+
+      <!-- Phase 19 — Integration Hooks -->
+      <div class="phase" id="phase-19">
+        <div class="phase-header">
+          <div class="phase-number">19</div>
+          <div>
+            <div class="phase-title">Integration Hooks &amp; Polish <span class="badge badge-done">Done</span></div>
+            <div class="phase-goal">Surface integration fields for Zoom, Gong, ChurnZero, Google Drive, and Salesforce</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Fields already in data model: <code>ZoomMeetingId</code>, <code>ZoomJoinUrl</code>, <code>GongCallId</code> on ProjectMeeting; <code>GoogleDriveFileId</code> on ProjectResource; <code>SalesforceOpportunityId</code>, <code>ChurnZeroAccountId</code> on ProjectJourneyAssignment</li>
+            <li>Admin UI: expose Zoom/Gong fields on meeting edit sheet in ProjectDetailPage</li>
+            <li>Google Drive file ID on resource edit sheet</li>
+            <li>JourneyItem: <code>ExternalId</code> on Journey for Salesforce hook</li>
+          </ol>
+          <div class="deliverable">All external system IDs captured in the data model, ready for future webhook/sync implementations.</div>
+        </div>
+      </div>
+
+      <!-- Phase 20 — Stage Category Management -->
+      <div class="phase" id="phase-20">
+        <div class="phase-header">
+          <div class="phase-number">20</div>
+          <div>
+            <div class="phase-title">Stage Category Management <span class="badge badge-done">Done</span></div>
+            <div class="phase-goal">Replace hardcoded "Standard | PostGoLive" stage categories with a DB-driven reference table managed via admin UI</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>New entity <code>JourneyStageCategory</code> (Id, Name, Description, SortOrder, IsActive); <code>JourneyStage.StageCategory</code> string column replaced with <code>StageCategoryId</code> int? FK</li>
+            <li>Migration seeds "Standard" and "PostGoLive" rows, migrates existing stage rows, drops old string column</li>
+            <li><code>JourneyStagesCategoriesController</code> — CRUD at <code>api/journey-stage-categories</code>; Admin write, Admin+CIS read; delete guarded if category is in use</li>
+            <li><code>JourneysController</code> — <code>JourneyStageDto</code> updated to <code>stageCategoryId</code> + <code>stageCategoryName</code>; stages query includes <code>StageCategory</code> nav property</li>
+            <li><code>PortalController</code> + <code>ProjectsController</code> — ComputeStageProgress updated to use category name from nav property; PostGoLive filter updated to use name join</li>
+            <li><code>JourneyStagesCategoriesPage.tsx</code> — two-panel admin page (same pattern as Implementation Types): list, inline edit, active toggle, delete with in-use guard</li>
+            <li><code>JourneyEditorPage.tsx</code> — stage category dropdowns now query <code>/api/journey-stage-categories</code> dynamically; hardcoded SelectItems removed; <code>StageCategoryBadge</code> renders category name</li>
+            <li>Admin nav: "Journeys" converted to collapsible group with "Journeys" and "Stage Categories" sub-items</li>
+          </ol>
+          <div class="deliverable">Admins can create/manage stage categories; Journey Editor dropdowns reflect the live category list.</div>
+        </div>
+      </div>
+
+    <!-- CROSS-CUTTING NOTES -->
+    <section id="cross-cutting">
+      <h2>Cross-Cutting Notes</h2>
+
+      <div class="note">
+        <h4>Beverage-Agnostic Design</h4>
+        <ul>
+          <li>No brewery-specific language in the UI — use "your products," "your items," "your setup"</li>
+          <li>Producer type drives catalog filtering, category lists, and item classification throughout the wizard</li>
+          <li>New producer types added by inserting a row in <code>ProducerTypes</code> — no schema change needed</li>
+          <li>Launch types: Brewery, Winery, Cidery, Distillery, Kombucha, Coffee, Soda, Other</li>
+        </ul>
+      </div>
+
+      <div class="note">
+        <h4>Audit Log — Standing Requirement</h4>
+        <ul>
+          <li>Every data write (create, update, delete, import, export) must call <code>IAuditService.LogAsync</code></li>
+          <li>Called after the DB write succeeds, outside any transaction (so log is never rolled back)</li>
+          <li>"Edit on behalf" actions attributed to the specialist, not the customer</li>
+          <li>Visible to all roles — customers see their project log; specialists and admins see all</li>
+        </ul>
+      </div>
+
+      <div class="note">
+        <h4>Catalog Scale (14,000 Items)</h4>
+        <ul>
+          <li>SQL Server Full-Text Search required for acceptable search performance</li>
+          <li>Paginated results (default 25 per page)</li>
+          <li>CSV bulk seeder with upsert-on-name logic — safe to re-run as catalog grows</li>
+          <li>Admin can import/export CSV at any time for ongoing maintenance</li>
+        </ul>
+      </div>
+
+      <div class="note">
+        <h4>Flexible Product/Item Importer</h4>
+        <ul>
+          <li>Accepts any structured spreadsheet — supplier price list, ERP export, implementation template</li>
+          <li>User-driven column mapping with named template save/reuse</li>
+          <li>Row-level confirm/skip before import</li>
+          <li>Works during implementation and post go-live (bulk import mode)</li>
+        </ul>
+      </div>
+
+      <div class="note">
+        <h4>Post-Implementation Continuity</h4>
+        <ul>
+          <li>The tool doesn't end at go-live — <code>IsPostImplementation = true</code> unlocks bulk import mode</li>
+          <li>Supplier import batches tracked separately from original implementation data</li>
+          <li>Changelog covers all post-go-live activity too</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- VERIFICATION -->
+    <section id="verification">
+      <h2>Verification Approach</h2>
+      <div>
+        <div class="verify-item"><div class="verify-num">1</div><div class="verify-text"><strong>Phase 1:</strong> Log in as each role; confirm unauthorized routes are blocked</div></div>
+        <div class="verify-item"><div class="verify-num">2</div><div class="verify-text"><strong>Phase 2:</strong> Add an item; changelog shows entry with user name, role, timestamp, and item name</div></div>
+        <div class="verify-item"><div class="verify-num">3</div><div class="verify-text"><strong>Phase 3:</strong> Enter a known email; SF match pre-fills profile; export fires an SF activity log entry; both appear in changelog</div></div>
+        <div class="verify-item"><div class="verify-num">4</div><div class="verify-text"><strong>Phase 4:</strong> Upload QB CSV; preview shows green/yellow/red per field; fix a flagged field; confirm; changelog shows QB import event</div></div>
+        <div class="verify-item"><div class="verify-num">5</div><div class="verify-text"><strong>Phase 5:</strong> Search "Citra" as Brewery — FTS returns results fast from 14K; switch to Distillery — different category list</div></div>
+        <div class="verify-item"><div class="verify-num">6</div><div class="verify-text"><strong>Phase 6:</strong> Complete Steps 1–2; close browser; reopen — wizard resumes at correct step with data intact</div></div>
+        <div class="verify-item"><div class="verify-num">7</div><div class="verify-text"><strong>Phase 7:</strong> Upload a supplier price list CSV; map columns; preview 50 rows; uncheck 3; confirm 47; changelog logs the import</div></div>
+        <div class="verify-item"><div class="verify-num">8</div><div class="verify-text"><strong>Phase 8:</strong> Add 10 items; attempt duplicate — toast fires; reorder — order persists on reload</div></div>
+        <div class="verify-item"><div class="verify-num">9</div><div class="verify-text"><strong>Phase 9:</strong> Edit UOM inline; changelog shows "UOM changed from 'each' to 'lb'"</div></div>
+        <div class="verify-item"><div class="verify-num">10</div><div class="verify-text"><strong>Phase 10:</strong> Leave UOM blank — validation fires, export disabled; fix it — error clears, export unlocks</div></div>
+        <div class="verify-item"><div class="verify-num">11</div><div class="verify-text"><strong>Phase 11:</strong> Export — .xlsx downloads with sections + products sheets, correct headers, timestamped filename; logged in SF</div></div>
+        <div class="verify-item"><div class="verify-num">12</div><div class="verify-text"><strong>Phase 12:</strong> Mark project post-implementation; bulk import a new supplier batch; verify separate batch in changelog</div></div>
+        <div class="verify-item"><div class="verify-num">13</div><div class="verify-text"><strong>Phase 13:</strong> Log in as ImplementationSpecialist; edit an item on behalf of customer; changelog shows specialist's name, not customer's</div></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <p>Imp Wizard &mdash; Project Plan &mdash; March 2026</p>
+  <p style="margin-top:4px">ASP.NET Core 8 Web API &plus; React 18 TypeScript &plus; SQL Server &plus; Salesforce</p>
+</footer>
+
+</body>
+</html>
