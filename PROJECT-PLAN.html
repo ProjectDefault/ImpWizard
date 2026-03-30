@@ -396,6 +396,7 @@
     <a href="#phase-1e">1e &mdash; Program Management</a>
     <a href="#phase-1i">1i &mdash; Form Field Enhancements</a>
     <a href="#phase-1j">1j &mdash; Bulk File Submission</a>
+    <a href="#phase-1k">1k &mdash; Packaging Types Catalog</a>
     <a href="#phase-2">2 &mdash; Audit Log</a>
     <a href="#phase-3">3 &mdash; Salesforce</a>
     <a href="#phase-4">4 &mdash; QuickBooks</a>
@@ -988,10 +989,10 @@
             <li><strong>Form Clone/Duplicate</strong> — <code>POST /api/forms/{id}/duplicate</code> copies the form and all fields including all properties: DataSourceFormId, DataSourceFieldId, CrossFormPreFillFormId, CrossFormPreFillFieldId, ImportTemplateHeader, AllowCustomValue, AutoFillValue, and ProgramId</li>
             <li><strong>Auto-Fill Value</strong> — new <code>AutoFillValue</code> string property on <code>FormField</code>; migration <code>20260317000002_AddFormFieldAutoFillValue</code>; backend enforces the value on both SaveDraft and SubmitForm (client-supplied value for that field is discarded and replaced server-side); portal renders the field read-only with an "Auto-filled" label</li>
             <li><strong>Auto-Fill UI</strong> — text input added to the field editor panel in FormEditorPage; uses <code>clearAutoFillValue</code> flag to remove it; empty = disabled</li>
-            <li><strong>Item Catalog dropdown source</strong> — new <code>"ItemCatalog"</code> data source type added to <code>DATA_SOURCE_TYPES</code>; <code>GetDropdownOptions</code> case returns all active <code>CatalogItem.ItemName</code> values, distinct, sorted A–Z; <code>FieldDataSourcePicker</code> shows the new option with a description blurb</li>
+            <li><strong>Item Catalog dropdown source</strong> — new <code>"ItemCatalog"</code> data source type added to <code>DATA_SOURCE_TYPES</code>; <code>GetDropdownOptions</code> case returns active catalog items sorted A–Z; <code>FieldDataSourcePicker</code> shows the option with a description blurb; a <strong>Column Selector</strong> lets the form designer choose which catalog field drives the dropdown label (ItemName, Supplier, VendorItemNumber, etc.) via a <code>DataSourceColumn</code> property on <code>FormField</code>; field editor panel shows the picker only when data source is ItemCatalog; portal respects the column when rendering options</li>
             <li><strong>Allow File Submission flag</strong> — new <code>AllowFileSubmission</code> bool on <code>Form</code> (default false); toggle added to FormsPage detail panel alongside the Active switch; exposed in all form DTOs and portal <code>FormWithFieldsDto</code></li>
           </ol>
-          <div class="deliverable">Forms can be cloned in one click preserving all field config. Fields can be auto-filled server-side. The Item Catalog is now a dropdown data source. Forms can be flagged to accept file uploads instead of manual entry. Deployed 2026-03-18.</div>
+          <div class="deliverable">Forms can be cloned in one click preserving all field config. Fields can be auto-filled server-side. The Item Catalog is now a dropdown data source with a configurable column selector. Forms can be flagged to accept file uploads instead of manual entry. Deployed 2026-03-18.</div>
         </div>
       </div>
 
@@ -1027,6 +1028,29 @@
             <li><strong>IDOR security</strong> — all row-level endpoints use subquery <code>_db.ProjectFormAssignments.Any(a =&gt; a.Id == faid &amp;&amp; a.ProjectId == projectId)</code> to safely scope operations without EF navigation chain translation issues</li>
           </ol>
           <div class="deliverable">Customers can upload a CSV or Excel file as a form submission. CIS/Admin maps columns, edits cells inline, uses smart fill to propagate repeated values, rejects bad rows with reasons, and finalizes — creating one FormSubmission per approved row. Deployed 2026-03-18.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1k — Packaging Types Catalog -->
+      <div class="phase" id="phase-1k">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1k</div>
+          <div>
+            <div class="phase-title">Packaging Types Catalog <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Structured admin catalog of packaging configurations (e.g. "Case - 4x6 - 16oz - Can") that feeds portal dropdowns</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Data model</strong> — four new entities: <code>PackagingType</code> (e.g. Case, Keg, Single; has <code>HasCount</code>, <code>HasStyle</code>, <code>ShowTypeInLabel</code> flags), <code>PackagingVolume</code> (16oz, 750ml, 30L…), <code>PackagingStyle</code> (Can, Bottle…), <code>PackagingEntry</code> (composed FK record: TypeId + Count? + VolumeId + StyleId?). All with SortOrder, IsActive, CreatedAt, UpdatedAt. Migration <code>AddPackagingCatalog</code>; all FKs on PackagingEntry use <code>DeleteBehavior.Restrict</code> to prevent orphan deletions.</li>
+            <li><strong>Label computation</strong> — <code>PackagingEntry</code> label is computed at query time (never stored): <code>"Type - Count - Volume - Style"</code> with Count/Style omitted when null; Type name omitted when <code>ShowTypeInLabel = false</code> (e.g. kegs don't need "Keg" prefix).</li>
+            <li><strong>PackagingController</strong> at <code>api/packaging</code>: four sub-resource groups (<code>/types</code>, <code>/volumes</code>, <code>/styles</code>, <code>/entries</code>) each with GET (list), POST (create), PUT/{id} (update), DELETE/{id} (guard: 400 if any entries reference the record). Auth: read = Admin+CIS; write = Admin only.</li>
+            <li><strong>CSV import/export</strong> — <code>POST api/packaging/entries/import</code> accepts CSV paste or file upload; upserts entries matching on type+count+volume+style combination; template downloadable at <code>api/packaging/entries/template</code> (anonymous access). Export respects active-only filter.</li>
+            <li><strong>Form integration</strong> — <code>"PackagingType"</code> added to <code>GetDataSourceName()</code> in <code>FormsController</code>; <code>GetDropdownOptions()</code> in <code>PortalController</code> queries active <code>PackagingEntries</code> ordered by SortOrder/Type/Volume and returns computed labels.</li>
+            <li><strong>Frontend — Admin page</strong> (<code>/admin/catalog/packaging</code>): two tabs — <em>Entries</em> (paginated table with Label, Type, Volume, Style, Count, Sort, Active columns; new-entry sheet with live label preview; Count/Style inputs conditionally shown based on selected type's flags) and <em>Components</em> (three-column card layout for Types, Volumes, Styles with inline edit sheets).</li>
+            <li><strong>Frontend — Nav</strong> — "Packaging Types" link added to the Catalog section of AdminLayout using the <code>Tag</code> icon.</li>
+          </ol>
+          <div class="deliverable">Admins build a packaging catalog from reusable Type/Volume/Style components. Entries show computed labels like "Case - 4x6 - 16oz - Can". The catalog is importable via CSV paste or file. Any form field can use "PackagingType" as a dropdown source to expose the computed labels in the portal. Deployed 2026-03-29.</div>
         </div>
       </div>
 
@@ -1107,16 +1131,17 @@
         <div class="phase-body" style="position:relative">
           <span class="badge" style="position:absolute;top:0;right:0;background:var(--green-lt);color:var(--green)">&#10003; Complete</span>
           <ol>
-            <li><strong>Suppliers &amp; Vendors</strong>: Admin CRUD pages with CSV import (upsert by name) and CSV export. Vendor optionally linked to a Supplier.</li>
-            <li><strong>Item Types &amp; SubTypes</strong>: Admin page to define CatalogItemTypes, their subtypes, and per-type custom fields (Text / Number / Boolean). EAV pattern stores custom field values per item.</li>
-            <li><strong>Catalog Items</strong> (<code>CatalogItems</code> table): ItemName, Program, ItemType, SubType, Supplier, Vendor, VendorItemNumber, PurchaseUomDescription, PurchaseAmountPerUom, PurchaseUom, IsActive, SortOrder, many-to-many ProductTypes, dynamic custom field values.</li>
-            <li><strong>Full-page paginated table</strong> (50/page, server-side): search by name, filter by Program / Type / Supplier / Vendor / ProductType / active status. All columns visible with sort support.</li>
-            <li><strong>Bulk edit</strong>: Select multiple rows → bulk-change Program, Item Type, Supplier, Vendor, or Active status for all selected items in one request.</li>
-            <li><strong>CSV import/export</strong> for catalog items: upsert matching on ItemName + VendorId; export respects active filters. Same pattern for Suppliers and Vendors.</li>
-            <li><strong>Dynamic custom fields in edit sheet</strong>: selecting an Item Type dynamically renders that type's custom field inputs below standard fields.</li>
-            <li>Routes: <code>/admin/catalog</code>, <code>/admin/settings/suppliers</code>, <code>/admin/settings/vendors</code>, <code>/admin/settings/catalog-item-types</code></li>
+            <li><strong>Suppliers &amp; Vendors</strong> — Admin CRUD pages with CSV import (upsert by name) and CSV export. Vendor optionally linked to a Supplier.</li>
+            <li><strong>Catalog Items</strong> (<code>CatalogItems</code> table) — ItemName, Program, IngredientType, SubType, Supplier, Vendor, VendorItemNumber, PurchaseUomDescription, PurchaseAmountPerUom, PurchaseUom, IsActive, SortOrder, many-to-many ProductTypes, many-to-many IngredientCategories, and dynamic EAV custom field values.</li>
+            <li><strong>Ingredient Types &amp; Sub-Types</strong> — <code>CatalogItemTypes</code> and <code>CatalogItemSubTypes</code> tables; admin three-panel page (<code>/admin/catalog/ingredient-types</code>) with Types | Sub-Types | Fields cards side-by-side; clicking a Type populates the Sub-Types and Fields panels. FK from <code>CatalogItems</code> to <code>CatalogItemTypes</code> uses <code>DeleteBehavior.Restrict</code> (controller guards deletion when items reference the type); FK to <code>CatalogItemSubTypes</code> uses <code>SetNull</code>.</li>
+            <li><strong>Per-type custom fields (EAV)</strong> — <code>CatalogItemTypeFields</code> defines named fields per type (FieldName machine key, FieldLabel display label, FieldType = Text | Number, IsRequired, SortOrder, <strong>IsActive</strong> for retire/restore). Values stored in <code>CatalogItemFieldValues</code> (one row per item × field). Fields can be retired (IsActive = false) instead of deleted — values are preserved and re-surface if the field is re-activated. <code>PUT api/catalog/{id}/field-values</code> does replace-on-write (delete + re-insert non-empty values). Export CSV includes dynamic columns — one per active field across the types present in the result set, blank for items of other types.</li>
+            <li><strong>Full-page paginated table</strong> (50/page, server-side) — search by name, filter by Program / Ingredient Type / Supplier / Vendor / ProductType / active status. Lightweight <code>BuildQuery()</code> for list/export; <code>BuildDetailQuery()</code> (with <code>ThenInclude</code> chains for type fields + field values) for single-item operations.</li>
+            <li><strong>Bulk edit</strong> — Select multiple rows → bulk-change Program, Supplier, Vendor, or Active status in one request.</li>
+            <li><strong>CSV import dialog</strong> — paste-CSV textarea as the primary input (file upload as secondary); column reference table with "Copy template" button; live parse preview showing row count; unknown columns silently ignored (custom fields must be pre-created and set via the edit sheet). Export respects active filters and appends dynamic field columns.</li>
+            <li><strong>Dynamic field inputs in item sheet</strong> — selecting an Ingredient Type renders a bordered "Type Fields" section with inputs for each active field; type change clears field values; fields saved to <code>field-values</code> endpoint alongside the main item update.</li>
+            <li>Routes: <code>/admin/catalog</code>, <code>/admin/catalog/ingredient-types</code>, <code>/admin/settings/suppliers</code>, <code>/admin/settings/vendors</code></li>
           </ol>
-          <div class="deliverable">Admins can build and maintain a 14,000-item catalog with full supplier/vendor/type hierarchy, bulk editing, CSV import/export, and EAV custom fields per item type. Deployed 2026-03-14.</div>
+          <div class="deliverable">Admins build and maintain a catalog with full supplier/vendor/type hierarchy, retire-safe EAV custom fields, bulk editing, and CSV import/export with dynamic field columns. Deployed 2026-03-14; extended with Ingredient Types, custom fields, and import dialog improvements 2026-03-30.</div>
         </div>
       </div>
 
