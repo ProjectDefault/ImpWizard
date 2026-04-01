@@ -555,6 +555,7 @@ public class CatalogItemsController : ControllerBase
             {
                 if (programId is not null) existing.ProgramId = programId;
                 if (supplierId is not null) existing.SupplierId = supplierId;
+                if (vendorId is not null) existing.VendorId = vendorId;
                 if (spec.VendorItemNumber is not null) existing.VendorItemNumber = spec.VendorItemNumber.Trim();
                 if (spec.PurchaseUomDescription is not null) existing.PurchaseUomDescription = spec.PurchaseUomDescription.Trim();
                 if (spec.PurchaseAmountPerUom is not null) existing.PurchaseAmountPerUom = spec.PurchaseAmountPerUom;

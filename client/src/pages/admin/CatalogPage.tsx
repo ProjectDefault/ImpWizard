@@ -486,6 +486,12 @@ export default function CatalogPage() {
       const created = result.results.filter(r => r.action === 'created').length
       const updated = result.results.filter(r => r.action === 'updated').length
       toast.success(`Import complete: ${created} created, ${updated} updated`)
+      const allWarnings = result.results.flatMap(r => r.warnings.map(w => `${r.itemName}: ${w}`))
+      if (allWarnings.length > 0) {
+        const preview = allWarnings.slice(0, 5).join('\n')
+        const extra = allWarnings.length > 5 ? `\n…and ${allWarnings.length - 5} more` : ''
+        toast.warning(`${allWarnings.length} warning${allWarnings.length !== 1 ? 's' : ''}:\n${preview}${extra}`, { duration: 10000 })
+      }
     },
     onError: () => toast.error('Import failed'),
   })
