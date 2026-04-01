@@ -505,7 +505,7 @@ public class CatalogItemsController : ControllerBase
             var existing = await _db.CatalogItems
                 .Include(ci => ci.ProductTypes)
                 .Include(ci => ci.Categories)
-                .FirstOrDefaultAsync(ci => ci.ItemName == name && ci.VendorId == vendorId);
+                .FirstOrDefaultAsync(ci => ci.ItemName == name);
 
             string action;
             if (existing is null)
