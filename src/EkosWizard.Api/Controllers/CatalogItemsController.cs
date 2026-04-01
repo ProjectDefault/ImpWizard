@@ -482,7 +482,7 @@ public class CatalogItemsController : ControllerBase
             int? programId = ResolveByName(allPrograms, spec.ProgramName, p => p.Name, p => p.Id, warnings, "Program");
             int? supplierId = ResolveByName(allSuppliers, spec.SupplierName, s => s.Name, s => s.Id, warnings, "Supplier");
             int? vendorId = ResolveByName(allVendors, spec.VendorName, v => v.Name, v => v.Id, warnings, "Vendor");
-            int? uomId = ResolveByName(allUoms, spec.PurchaseUomName, u => u.Name, u => u.Id, warnings, "PurchaseUom");
+            int? uomId = ResolveUom(allUoms, spec.PurchaseUomName, warnings);
 
             int? catalogItemTypeId = null;
             int? catalogItemSubTypeId = null;
@@ -607,6 +607,18 @@ public class CatalogItemsController : ControllerBase
         var match = list.FirstOrDefault(x => nameSelector(x).Equals(name.Trim(), StringComparison.OrdinalIgnoreCase));
         if (match is null) warnings.Add($"{entityLabel} '{name}' not found — skipped.");
         return match is null ? null : idSelector(match);
+    }
+
+    private static int? ResolveUom(
+        IEnumerable<UnitOfMeasure> list, string? name,
+        List<string> warnings)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var trimmed = name.Trim();
+        var match = list.FirstOrDefault(u => u.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+                 ?? list.FirstOrDefault(u => u.Abbreviation != null && u.Abbreviation.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
+        if (match is null) warnings.Add($"PurchaseUom '{name}' not found — skipped.");
+        return match?.Id;
     }
 
     // ── Export ────────────────────────────────────────────────────────────────
