@@ -23,6 +23,7 @@ import {
 import type {
   CatalogItemListDto, CatalogItemDetailDto, CreateCatalogItemPayload,
   UpdateCatalogItemPayload, CatalogFilters, ImportItemSpec, BulkUpdatePayload,
+  ImportResultDto,
 } from '@/api/catalog'
 import { getItemCategories } from '@/api/itemCategories'
 import { getSuppliers } from '@/api/suppliers'
@@ -65,7 +66,8 @@ function parseCatalogCsv(text: string): ImportItemSpec[] {
       purchaseUomDescription: obj['purchaseuomdescription'] || undefined,
       purchaseAmountPerUom: obj['purchaseamountperuom'] ? parseFloat(obj['purchaseamountperuom']) : undefined,
       purchaseUomName: obj['purchaseuom'] || obj['uom'] || undefined,
-      isActive: obj['isactive'] !== 'false',
+      isActive: (obj['isactive'] ?? '').toLowerCase() !== 'false',
+      sortOrder: obj['sortorder'] ? parseInt(obj['sortorder'], 10) : undefined,
       productTypeNames: obj['producttypes'] ? obj['producttypes'].split('|').filter(Boolean) : undefined,
       categoryNames: obj['categories'] ? obj['categories'].split('|').filter(Boolean) : undefined,
       catalogItemTypeName: obj['itemtype'] || obj['catalogitemtypename'] || undefined,
@@ -271,6 +273,60 @@ function CatalogImportDialog({
   )
 }
 
+function CatalogImportResultsDialog({
+  open, onClose, results,
+}: {
+  open: boolean
+  onClose: () => void
+  results: ImportResultDto[] | null
+}) {
+  if (!results) return null
+  const created = results.filter(r => r.action === 'created').length
+  const updated = results.filter(r => r.action === 'updated').length
+  const withWarnings = results.filter(r => r.warnings.length > 0)
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Import Results</DialogTitle>
+        </DialogHeader>
+        <div className="text-sm text-muted-foreground mb-2">
+          {created} created · {updated} updated
+          {withWarnings.length > 0 && <span className="text-amber-600 ml-2">· {withWarnings.length} with warnings</span>}
+        </div>
+        {withWarnings.length > 0 && (
+          <div className="overflow-y-auto flex-1 rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Warnings</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {withWarnings.map((r, i) => (
+                  <TableRow key={i} className="bg-amber-50 dark:bg-amber-950/20">
+                    <TableCell className="font-medium">{r.itemName}</TableCell>
+                    <TableCell>{r.action}</TableCell>
+                    <TableCell className="text-xs text-amber-700 dark:text-amber-400">{r.warnings.join(' · ')}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        {withWarnings.length === 0 && (
+          <p className="text-sm text-green-600">All items imported successfully with no warnings.</p>
+        )}
+        <DialogFooter>
+          <Button onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 type SheetMode = 'create' | 'edit'
 
 interface ItemForm {
@@ -344,6 +400,8 @@ export default function CatalogPage() {
   const [newVendorName, setNewVendorName] = useState('')
 
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importResults, setImportResults] = useState<ImportResultDto[] | null>(null)
+  const [importResultsOpen, setImportResultsOpen] = useState(false)
 
   // --- Queries ---
   const filters: CatalogFilters = {
@@ -483,15 +541,9 @@ export default function CatalogPage() {
     mutationFn: importCatalogItems,
     onSuccess: (result) => {
       invalidateCatalog()
-      const created = result.results.filter(r => r.action === 'created').length
-      const updated = result.results.filter(r => r.action === 'updated').length
-      toast.success(`Import complete: ${created} created, ${updated} updated`)
-      const allWarnings = result.results.flatMap(r => r.warnings.map(w => `${r.itemName}: ${w}`))
-      if (allWarnings.length > 0) {
-        const preview = allWarnings.slice(0, 5).join('\n')
-        const extra = allWarnings.length > 5 ? `\n…and ${allWarnings.length - 5} more` : ''
-        toast.warning(`${allWarnings.length} warning${allWarnings.length !== 1 ? 's' : ''}:\n${preview}${extra}`, { duration: 10000 })
-      }
+      setImportDialogOpen(false)
+      setImportResults(result.results)
+      setImportResultsOpen(true)
     },
     onError: () => toast.error('Import failed'),
   })
@@ -1051,11 +1103,15 @@ export default function CatalogPage() {
       <CatalogImportDialog
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
-        onImport={specs => {
-          importMutation.mutate(specs)
-          setImportDialogOpen(false)
-        }}
+        onImport={specs => importMutation.mutate(specs)}
         isPending={importMutation.isPending}
+      />
+
+      {/* Import Results Dialog */}
+      <CatalogImportResultsDialog
+        open={importResultsOpen}
+        onClose={() => setImportResultsOpen(false)}
+        results={importResults}
       />
 
       {/* Quick-Create Supplier Dialog */}

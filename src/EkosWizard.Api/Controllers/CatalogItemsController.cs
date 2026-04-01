@@ -464,8 +464,6 @@ public class CatalogItemsController : ControllerBase
     public async Task<IActionResult> Import([FromBody] IEnumerable<ImportItemSpec> specs)
     {
         var allPrograms = await _db.Programs.ToListAsync();
-        var allSuppliers = await _db.Suppliers.ToListAsync();
-        var allVendors = await _db.Vendors.ToListAsync();
         var allUoms = await _db.UnitsOfMeasure.ToListAsync();
         var allProductTypes = await _db.ProductTypes.ToListAsync();
         var allCategories = await _db.ItemCategories.ToListAsync();
@@ -480,8 +478,8 @@ public class CatalogItemsController : ControllerBase
             var warnings = new List<string>();
 
             int? programId = ResolveByName(allPrograms, spec.ProgramName, p => p.Name, p => p.Id, warnings, "Program");
-            int? supplierId = ResolveByName(allSuppliers, spec.SupplierName, s => s.Name, s => s.Id, warnings, "Supplier");
-            int? vendorId = ResolveByName(allVendors, spec.VendorName, v => v.Name, v => v.Id, warnings, "Vendor");
+            int? supplierId = await ResolveOrCreateSupplier(spec.SupplierName, warnings);
+            int? vendorId = await ResolveOrCreateVendor(spec.VendorName, warnings);
             int? uomId = ResolveUom(allUoms, spec.PurchaseUomName, warnings);
 
             int? catalogItemTypeId = null;
@@ -619,6 +617,32 @@ public class CatalogItemsController : ControllerBase
                  ?? list.FirstOrDefault(u => u.Abbreviation != null && u.Abbreviation.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
         if (match is null) warnings.Add($"PurchaseUom '{name}' not found — skipped.");
         return match?.Id;
+    }
+
+    private async Task<int?> ResolveOrCreateSupplier(string? name, List<string> warnings)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var trimmed = name.Trim();
+        var match = await _db.Suppliers.FirstOrDefaultAsync(s => s.Name == trimmed);
+        if (match is not null) return match.Id;
+        var entity = new Supplier { Name = trimmed, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        _db.Suppliers.Add(entity);
+        await _db.SaveChangesAsync();
+        warnings.Add($"Supplier '{trimmed}' did not exist and was created automatically.");
+        return entity.Id;
+    }
+
+    private async Task<int?> ResolveOrCreateVendor(string? name, List<string> warnings)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var trimmed = name.Trim();
+        var match = await _db.Vendors.FirstOrDefaultAsync(v => v.Name == trimmed);
+        if (match is not null) return match.Id;
+        var entity = new Vendor { Name = trimmed, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        _db.Vendors.Add(entity);
+        await _db.SaveChangesAsync();
+        warnings.Add($"Vendor '{trimmed}' did not exist and was created automatically.");
+        return entity.Id;
     }
 
     // ── Export ────────────────────────────────────────────────────────────────
