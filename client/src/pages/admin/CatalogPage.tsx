@@ -658,7 +658,9 @@ export default function CatalogPage() {
         </div>
 
         <Select value={programFilter?.toString() ?? 'all'} onValueChange={v => { setProgramFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Program" /></SelectTrigger>
+          <SelectTrigger className="w-36">
+            <SelectValue>{programFilter === null ? 'All Programs' : (programs?.find(p => p.id === programFilter)?.name ?? 'Program')}</SelectValue>
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Programs</SelectItem>
             {programs?.filter(p => p.isActive).map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
@@ -666,7 +668,9 @@ export default function CatalogPage() {
         </Select>
 
         <Select value={categoryFilter?.toString() ?? 'all'} onValueChange={v => { setCategoryFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Category" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue>{categoryFilter === null ? 'All Categories' : (categories?.find(c => c.id === categoryFilter)?.name ?? 'Category')}</SelectValue>
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
             {categories?.filter(c => c.isActive).map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
@@ -674,7 +678,9 @@ export default function CatalogPage() {
         </Select>
 
         <Select value={supplierFilter?.toString() ?? 'all'} onValueChange={v => { setSupplierFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Supplier" /></SelectTrigger>
+          <SelectTrigger className="w-36">
+            <SelectValue>{supplierFilter === null ? 'All Suppliers' : (suppliers?.find(s => s.id === supplierFilter)?.name ?? 'Supplier')}</SelectValue>
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Suppliers</SelectItem>
             {suppliers?.filter(s => s.isActive).map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
@@ -682,7 +688,9 @@ export default function CatalogPage() {
         </Select>
 
         <Select value={vendorFilter?.toString() ?? 'all'} onValueChange={v => { setVendorFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Vendor" /></SelectTrigger>
+          <SelectTrigger className="w-36">
+            <SelectValue>{vendorFilter === null ? 'All Vendors' : (vendors?.find(v => v.id === vendorFilter)?.name ?? 'Vendor')}</SelectValue>
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Vendors</SelectItem>
             {vendors?.filter(v => v.isActive).map(v => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}
@@ -690,7 +698,9 @@ export default function CatalogPage() {
         </Select>
 
         <Select value={productTypeFilter?.toString() ?? 'all'} onValueChange={v => { setProductTypeFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Product Type" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue>{productTypeFilter === null ? 'All Product Types' : (productTypes?.find(pt => pt.id === productTypeFilter)?.name ?? 'Product Type')}</SelectValue>
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Product Types</SelectItem>
             {productTypes?.map(pt => <SelectItem key={pt.id} value={String(pt.id)}>{pt.name}</SelectItem>)}
@@ -698,7 +708,9 @@ export default function CatalogPage() {
         </Select>
 
         <Select value={catalogItemTypeFilter?.toString() ?? 'all'} onValueChange={v => { setCatalogItemTypeFilter(v === 'all' ? null : Number(v)); setPage(1) }}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Ingredient Type" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue>{catalogItemTypeFilter === null ? 'All Ingredient Types' : (catalogItemTypes?.find(t => t.id === catalogItemTypeFilter)?.name ?? 'Ingredient Type')}</SelectValue>
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Ingredient Types</SelectItem>
             {catalogItemTypes?.filter(t => t.isActive).map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
