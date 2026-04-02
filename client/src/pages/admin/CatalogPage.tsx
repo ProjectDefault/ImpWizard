@@ -33,7 +33,7 @@ import { getProductTypes } from '@/api/productTypes'
 import { getUnitsOfMeasure } from '@/api/unitsOfMeasure'
 import { getCatalogItemTypes, type CatalogItemTypeDto } from '@/api/catalogItemTypes'
 
-const PAGE_SIZE = 50
+const PAGE_SIZE_OPTIONS = [50, 100, 250, 500]
 
 // ── CSV helpers (used by import dialog) ──────────────────────────────────────
 
@@ -379,6 +379,7 @@ export default function CatalogPage() {
   const [catalogItemTypeFilter, setCatalogItemTypeFilter] = useState<number | null>(null)
   const [showInactive, setShowInactive] = useState(false)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -414,7 +415,7 @@ export default function CatalogPage() {
     catalogItemTypeId: catalogItemTypeFilter ?? undefined,
     isActive: showInactive ? undefined : true,
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   }
 
   const { data: catalogData, isLoading: catalogLoading } = useQuery({
@@ -610,9 +611,9 @@ export default function CatalogPage() {
     }
   }
 
-  const totalPages = Math.ceil((catalogData?.totalCount ?? 0) / PAGE_SIZE)
-  const showingFrom = ((page - 1) * PAGE_SIZE) + 1
-  const showingTo = Math.min(page * PAGE_SIZE, catalogData?.totalCount ?? 0)
+  const totalPages = Math.ceil((catalogData?.totalCount ?? 0) / pageSize)
+  const showingFrom = ((page - 1) * pageSize) + 1
+  const showingTo = Math.min(page * pageSize, catalogData?.totalCount ?? 0)
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -844,14 +845,27 @@ export default function CatalogPage() {
       {(catalogData?.totalCount ?? 0) > 0 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>Showing {showingFrom}–{showingTo} of {catalogData?.totalCount}</span>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span>Page {page} of {totalPages}</span>
-            <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs">Per page:</span>
+              <Select value={String(pageSize)} onValueChange={v => { setPageSize(Number(v)); setPage(1) }}>
+                <SelectTrigger className="h-8 w-20 text-xs">
+                  <SelectValue>{pageSize}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span>Page {page} of {totalPages}</span>
+              <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}

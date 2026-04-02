@@ -191,7 +191,7 @@ public class CatalogItemsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
-        pageSize = Math.Clamp(pageSize, 1, 200);
+        pageSize = Math.Clamp(pageSize, 1, 500);
         page = Math.Max(1, page);
 
         var query = BuildQuery().AsQueryable();
