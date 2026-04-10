@@ -36,6 +36,13 @@ public class ProjectsController : ControllerBase
         string Status,
         int CurrentStep,
         int? ProgramId,
+        string? AddressLine1,
+        string? AddressLine2,
+        string? City,
+        string? StateProvince,
+        string? PostalCode,
+        string? Country,
+        string? Timezone,
         DateTime CreatedAt,
         DateTime UpdatedAt);
 
@@ -55,7 +62,15 @@ public class ProjectsController : ControllerBase
         string? Status,
         // Only Admin may change these
         string? ProjectType,
-        int? ProgramId);
+        int? ProgramId,
+        // Address & locale
+        string? AddressLine1,
+        string? AddressLine2,
+        string? City,
+        string? StateProvince,
+        string? PostalCode,
+        string? Country,
+        string? Timezone);
 
     // Journey assignment
     public record AssignJourneyRequest(int JourneyId, string? Notes = null,
@@ -117,7 +132,9 @@ public class ProjectsController : ControllerBase
         p.SalesforceAccountId, p.SalesforceProjectId,
         p.AssignedSpecialist is null ? null
             : new SpecialistDto(p.AssignedSpecialist.Id, p.AssignedSpecialist.FullName, p.AssignedSpecialist.Email ?? ""),
-        p.Status, p.CurrentStep, p.ProgramId, p.CreatedAt, p.UpdatedAt);
+        p.Status, p.CurrentStep, p.ProgramId,
+        p.AddressLine1, p.AddressLine2, p.City, p.StateProvince, p.PostalCode, p.Country, p.Timezone,
+        p.CreatedAt, p.UpdatedAt);
 
     private bool IsAdmin() => User.IsInRole("Admin");
 
@@ -305,6 +322,15 @@ public class ProjectsController : ControllerBase
         if (req.AssignedSpecialistId is not null) project.AssignedSpecialistId = req.AssignedSpecialistId;
         if (req.Status is not null) project.Status = req.Status;
         if (req.ProgramId is not null) project.ProgramId = req.ProgramId == 0 ? null : req.ProgramId;
+
+        // Address & locale — empty string clears the field
+        if (req.AddressLine1 is not null) project.AddressLine1 = req.AddressLine1.Trim().Length > 0 ? req.AddressLine1.Trim() : null;
+        if (req.AddressLine2 is not null) project.AddressLine2 = req.AddressLine2.Trim().Length > 0 ? req.AddressLine2.Trim() : null;
+        if (req.City is not null) project.City = req.City.Trim().Length > 0 ? req.City.Trim() : null;
+        if (req.StateProvince is not null) project.StateProvince = req.StateProvince.Trim().Length > 0 ? req.StateProvince.Trim() : null;
+        if (req.PostalCode is not null) project.PostalCode = req.PostalCode.Trim().Length > 0 ? req.PostalCode.Trim() : null;
+        if (req.Country is not null) project.Country = req.Country.Trim().Length > 0 ? req.Country.Trim() : null;
+        if (req.Timezone is not null) project.Timezone = req.Timezone.Trim().Length > 0 ? req.Timezone.Trim() : null;
 
         project.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

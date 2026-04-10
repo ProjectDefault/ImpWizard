@@ -24,6 +24,15 @@ public class ImplementationProject
     public int? ProgramId { get; set; }
     public Program? Program { get; set; }
 
+    // ── Address & Locale ──────────────────────────────────────────────────────
+    public string? AddressLine1 { get; set; }
+    public string? AddressLine2 { get; set; }
+    public string? City { get; set; }
+    public string? StateProvince { get; set; }
+    public string? PostalCode { get; set; }
+    public string? Country { get; set; }
+    public string? Timezone { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

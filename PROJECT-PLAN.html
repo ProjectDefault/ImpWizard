@@ -370,8 +370,8 @@
     <span>SQL Server</span>
     <span>Docker Compose</span>
     <span>Salesforce Integration</span>
-    <span>13+ Phases</span>
-    <span>Generated March 2026</span>
+    <span>15+ Phases</span>
+    <span>Updated April 2026</span>
   </div>
 </header>
 
@@ -397,6 +397,7 @@
     <a href="#phase-1i">1i &mdash; Form Field Enhancements</a>
     <a href="#phase-1j">1j &mdash; Bulk File Submission</a>
     <a href="#phase-1k">1k &mdash; Packaging Types Catalog</a>
+    <a href="#phase-1l">1l &mdash; Product Management</a>
     <a href="#phase-2">2 &mdash; Audit Log</a>
     <a href="#phase-3">3 &mdash; Salesforce</a>
     <a href="#phase-4">4 &mdash; QuickBooks</a>
@@ -1054,6 +1055,28 @@
         </div>
       </div>
 
+      <!-- Phase 1l — Product Management -->
+      <div class="phase" id="phase-1l">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1l</div>
+          <div>
+            <div class="phase-title">Product Management <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Per-project producer product lists with include/exclude curation and publish to customer portal</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Data model</strong> — two new entities: <code>ProducerProductList</code> (per-project; Title, Status: Draft | Published | Submitted, SourceUrl) and <code>ProducerProduct</code> (Name, Style, CheckInCount, LastActivityDate, SourceUrl, IsIncluded, IsCustomerAdded, DuplicateOfId?). Migration <code>AddProducerProductList</code>.</li>
+            <li><strong>ProductListController</strong> — CRUD for lists and products; toggle include/exclude per product; publish endpoint (Draft → Published); Customer-added product flag; duplicate resolution (auto-keeps highest check-in count when same product appears twice).</li>
+            <li><strong>Admin page</strong> at <code>/admin/journeys/product-management</code> (under Journey Management section): project picker → view list with status badge; include/exclude toggle per product row; product metadata (style, check-in count, last activity, source link); collapsible "auto-resolved duplicates" section with orange warnings; Publish to Portal button; Edit Settings / Set Up dialog for title management.</li>
+            <li><strong>Portal integration</strong> — published product lists surface on the customer portal project page, allowing customers to see their curated product list; customer-added products are flagged with a badge for admin visibility.</li>
+            <li><strong>Journey item type</strong> — "Product Presentation" item type added to the Journey Builder item type vocabulary for use in stage items.</li>
+            <li><strong>Import template source</strong> — product lists available as a data source for import template column mapping.</li>
+          </ol>
+          <div class="deliverable">Admins curate a per-project product list, toggle individual products in or out, resolve duplicates automatically, and publish the list to the customer portal in one click. Deployed 2026-03-30.</div>
+        </div>
+      </div>
+
       <div class="phase" id="phase-2">
         <div class="phase-header">
           <div class="phase-number">2</div>
@@ -1554,7 +1577,7 @@
 </div>
 
 <footer>
-  <p>Imp Wizard &mdash; Project Plan &mdash; March 2026</p>
+  <p>Imp Wizard &mdash; Project Plan &mdash; Updated April 2026</p>
   <p style="margin-top:4px">ASP.NET Core 8 Web API &plus; React 18 TypeScript &plus; SQL Server &plus; Salesforce</p>
 </footer>
 

@@ -18,7 +18,8 @@ import {
   CheckCircle2, Circle, Loader2
 } from 'lucide-react'
 
-import { getProjects } from '@/api/projects'
+import { getProjects, updateProject } from '@/api/projects'
+import type { UpdateProjectPayload } from '@/api/projects'
 import { getProjectChangelog } from '@/api/audit'
 import { getProfile } from '@/api/profile'
 import { formatAuditTimestamp } from '@/lib/formatTimestamp'
@@ -104,6 +105,10 @@ export default function ProjectDetailPage() {
 
   // ── Shared state ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('overview')
+
+  // ── Settings tab state ────────────────────────────────────────────────────
+  const [settingsForm, setSettingsForm] = useState<UpdateProjectPayload>({})
+  const [settingsInitialized, setSettingsInitialized] = useState(false)
 
   // ── Journey tab state ─────────────────────────────────────────────────────
   const [journeySheetOpen, setJourneySheetOpen] = useState(false)
@@ -219,6 +224,16 @@ export default function ProjectDetailPage() {
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: getProfile,
+  })
+
+  // ── Settings mutation ─────────────────────────────────────────────────────
+  const updateProjectMutation = useMutation({
+    mutationFn: (payload: UpdateProjectPayload) => updateProject(pid, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      toast.success('Project settings saved.')
+    },
+    onError: () => toast.error('Failed to save project settings.'),
   })
 
   // ── Mutations ─────────────────────────────────────────────────────────────
@@ -557,6 +572,7 @@ export default function ProjectDetailPage() {
           <TabsTrigger value="submissions">Submissions</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="changelog">Changelog</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         {/* ── Overview Tab ─────────────────────────────────────────────────── */}
@@ -1168,6 +1184,134 @@ export default function ProjectDetailPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* ── Settings Tab ─────────────────────────────────────────────────── */}
+        <TabsContent value="settings" className="pt-4">
+          {(() => {
+            if (!settingsInitialized && project) {
+              setSettingsForm({
+                customerName: project.customerName,
+                status: project.status,
+                assignedSpecialistId: project.assignedSpecialist?.id ?? '',
+                addressLine1: project.addressLine1 ?? '',
+                addressLine2: project.addressLine2 ?? '',
+                city: project.city ?? '',
+                stateProvince: project.stateProvince ?? '',
+                postalCode: project.postalCode ?? '',
+                country: project.country ?? '',
+                timezone: project.timezone ?? '',
+              })
+              setSettingsInitialized(true)
+            }
+            return null
+          })()}
+          <form
+            className="max-w-2xl space-y-6"
+            onSubmit={e => {
+              e.preventDefault()
+              updateProjectMutation.mutate(settingsForm)
+            }}
+          >
+            <div className="rounded-lg border p-4 space-y-4">
+              <h3 className="text-sm font-semibold">General</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Customer Name</Label>
+                  <Input value={settingsForm.customerName ?? ''} onChange={e => setSettingsForm(f => ({ ...f, customerName: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Status</Label>
+                  <Select value={settingsForm.status ?? ''} onValueChange={v => setSettingsForm(f => ({ ...f, status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="OnHold">On Hold</SelectItem>
+                      <SelectItem value="Complete">Complete</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4 space-y-4">
+              <h3 className="text-sm font-semibold">Address</h3>
+              <div className="space-y-1">
+                <Label>Address Line 1</Label>
+                <Input value={settingsForm.addressLine1 ?? ''} onChange={e => setSettingsForm(f => ({ ...f, addressLine1: e.target.value }))} placeholder="123 Main St" />
+              </div>
+              <div className="space-y-1">
+                <Label>Address Line 2</Label>
+                <Input value={settingsForm.addressLine2 ?? ''} onChange={e => setSettingsForm(f => ({ ...f, addressLine2: e.target.value }))} placeholder="Suite 100" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>City</Label>
+                  <Input value={settingsForm.city ?? ''} onChange={e => setSettingsForm(f => ({ ...f, city: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label>State / Province</Label>
+                  <Input value={settingsForm.stateProvince ?? ''} onChange={e => setSettingsForm(f => ({ ...f, stateProvince: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Postal Code</Label>
+                  <Input value={settingsForm.postalCode ?? ''} onChange={e => setSettingsForm(f => ({ ...f, postalCode: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Country</Label>
+                  <Input
+                    list="country-suggestions"
+                    value={settingsForm.country ?? ''}
+                    onChange={e => setSettingsForm(f => ({ ...f, country: e.target.value }))}
+                    placeholder="United States"
+                  />
+                  <datalist id="country-suggestions">
+                    {['United States', 'Canada', 'United Kingdom', 'Australia', 'New Zealand', 'Germany', 'France', 'Netherlands', 'Japan', 'Mexico'].map(c => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4 space-y-4">
+              <h3 className="text-sm font-semibold">Locale</h3>
+              <div className="space-y-1">
+                <Label>Timezone</Label>
+                <Select value={settingsForm.timezone ?? ''} onValueChange={v => setSettingsForm(f => ({ ...f, timezone: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timezone..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="America/New_York">Eastern Time (America/New_York)</SelectItem>
+                    <SelectItem value="America/Chicago">Central Time (America/Chicago)</SelectItem>
+                    <SelectItem value="America/Denver">Mountain Time (America/Denver)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">Pacific Time (America/Los_Angeles)</SelectItem>
+                    <SelectItem value="America/Anchorage">Alaska Time (America/Anchorage)</SelectItem>
+                    <SelectItem value="Pacific/Honolulu">Hawaii Time (Pacific/Honolulu)</SelectItem>
+                    <SelectItem value="America/Toronto">Toronto (America/Toronto)</SelectItem>
+                    <SelectItem value="America/Vancouver">Vancouver (America/Vancouver)</SelectItem>
+                    <SelectItem value="America/Mexico_City">Mexico City (America/Mexico_City)</SelectItem>
+                    <SelectItem value="Europe/London">London (Europe/London)</SelectItem>
+                    <SelectItem value="Europe/Paris">Paris (Europe/Paris)</SelectItem>
+                    <SelectItem value="Europe/Berlin">Berlin (Europe/Berlin)</SelectItem>
+                    <SelectItem value="Europe/Amsterdam">Amsterdam (Europe/Amsterdam)</SelectItem>
+                    <SelectItem value="Australia/Sydney">Sydney (Australia/Sydney)</SelectItem>
+                    <SelectItem value="Australia/Melbourne">Melbourne (Australia/Melbourne)</SelectItem>
+                    <SelectItem value="Pacific/Auckland">Auckland (Pacific/Auckland)</SelectItem>
+                    <SelectItem value="Asia/Tokyo">Tokyo (Asia/Tokyo)</SelectItem>
+                    <SelectItem value="Asia/Singapore">Singapore (Asia/Singapore)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={updateProjectMutation.isPending}>
+                {updateProjectMutation.isPending ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </div>
+          </form>
         </TabsContent>
       </Tabs>
 
