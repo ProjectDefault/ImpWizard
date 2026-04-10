@@ -400,6 +400,8 @@
     <a href="#phase-1l">1l &mdash; Product Management</a>
     <a href="#phase-1m">1m &mdash; Project Address &amp; Locale</a>
     <a href="#phase-1n">1n &mdash; Cascading Dropdowns</a>
+    <a href="#phase-1o">1o &mdash; Catalog Item Auto-Fill</a>
+    <a href="#phase-1p">1p &mdash; Address Auto-Fill Tokens</a>
     <a href="#phase-2">2 &mdash; Audit Log</a>
     <a href="#phase-3">3 &mdash; Salesforce</a>
     <a href="#phase-4">4 &mdash; QuickBooks</a>
@@ -1117,6 +1119,45 @@
             <li><strong>Portal (PortalFormFillPage)</strong> — <code>PortalFieldRenderer</code> receives <code>parentValue</code> prop (current answer of the parent field); query key includes <code>parentValue</code> so TanStack Query re-fetches when it changes; child field value clears automatically when parent changes; <code>getDropdownOptions</code> forwards <code>parentValue</code> to the API.</li>
           </ol>
           <div class="deliverable">Admins can configure a Category field (ItemCategory) and an Item field (ItemCatalog) where the item list auto-filters to the selected category. No category selection = full item list shown. Deployed 2026-04-10.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1o — Catalog Item Auto-Fill -->
+      <div class="phase" id="phase-1o">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1o</div>
+          <div>
+            <div class="phase-title">Catalog Item Auto-Fill <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Selecting a catalog item auto-populates related fields (category, SKU, UOM, etc.) with country-aware unit conversion</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Data model</strong> — two new properties on <code>FormField</code>: <code>IsCatalogItemSource</code> (bool, marks the item picker field) and <code>CatalogAutoFillColumn</code> (string?, values: "ItemName" | "ItemCategory" | "VendorSku" | "PurchaseUomDescription" | "UomName"). Migration <code>AddCatalogItemAutoFill</code>.</li>
+            <li><strong>FormsController</strong> — both fields included in <code>FormFieldDto</code>, <code>UpdateFormFieldRequest</code>, and the Update handler (<code>ClearCatalogAutoFillColumn</code> flag supported).</li>
+            <li><strong>PortalController</strong> — both fields included in <code>FormFieldForFillDto</code>; new endpoint <code>GET /api/portal/catalog-item-lookup?itemName=X&amp;projectId=Y</code> returns <code>found</code>, <code>itemName</code>, <code>itemCategory</code>, <code>vendorSku</code>, <code>purchaseUomDescription</code>, <code>uomName</code>, and <code>suggestedUomName</code>. Country-based UOM conversion: US/USA → kg→lb, g→oz, L/mL→fl oz; other countries return metric as-is.</li>
+            <li><strong>Admin UI (FormEditorPage)</strong> — "Catalog item source" toggle appears on Dropdown+AllowCustomValue+ItemCatalog fields. "Auto-fill from catalog item" picker (None / Item Name / Category / Vendor SKU / Purchase Description / Unit of Measure) appears on any field when a sibling with <code>IsCatalogItemSource</code> exists.</li>
+            <li><strong>Portal (PortalFormFillPage)</strong> — watches the catalog source field's answer at the page level; on change calls <code>getCatalogItemLookup</code> and populates all <code>CatalogAutoFillColumn</code> fields from the result; clears auto-filled fields when source is cleared or item is custom (not found).</li>
+          </ol>
+          <div class="deliverable">Admins can configure an "Item Form" where selecting a catalog item auto-fills category, SKU, purchase description, and UOM. Custom items leave fields blank and editable. UOM defaults to imperial for US projects. Deployed 2026-04-10.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1p — Address Auto-Fill Tokens (placeholder) -->
+      <div class="phase" id="phase-1p">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--blue,#3b82f6)">1p</div>
+          <div>
+            <div class="phase-title">Address Auto-Fill Tokens <span style="font-size:.8rem;font-weight:600;color:#3b82f6;margin-left:8px">&#9654; In Progress</span></div>
+            <div class="phase-goal">AutoFillValue supports {{project.city}} tokens resolved server-side from project address fields</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li>Server-side token resolution in <code>PortalController</code> SaveDraft and SubmitForm — replace <code>{{project.addressLine1}}</code>, <code>{{project.city}}</code>, <code>{{project.stateProvince}}</code>, <code>{{project.postalCode}}</code>, <code>{{project.country}}</code>, <code>{{project.timezone}}</code></li>
+            <li>Admin UI — replace free-text AutoFillValue input with a picker offering token shortcuts in addition to literal text</li>
+          </ol>
+          <div class="deliverable">Form fields auto-filled from project address data without hardcoding values.</div>
         </div>
       </div>
 

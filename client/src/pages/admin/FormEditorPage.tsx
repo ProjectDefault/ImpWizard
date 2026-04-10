@@ -391,6 +391,26 @@ function FieldConfigPanel({
           placeholder="Leave blank to disable"
           className="h-7 text-sm"
         />
+        <div className="flex flex-wrap gap-1">
+          {[
+            { label: 'Address 1', token: '{{project.addressLine1}}' },
+            { label: 'Address 2', token: '{{project.addressLine2}}' },
+            { label: 'City', token: '{{project.city}}' },
+            { label: 'State/Province', token: '{{project.stateProvince}}' },
+            { label: 'Postal Code', token: '{{project.postalCode}}' },
+            { label: 'Country', token: '{{project.country}}' },
+            { label: 'Timezone', token: '{{project.timezone}}' },
+          ].map(({ label, token }) => (
+            <button
+              key={token}
+              type="button"
+              onClick={() => setAutoFillValue(token)}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {autoFillValue.trim() && (
           <p className="text-xs text-muted-foreground">
             This field will always be filled with this value and shown as read-only on the portal.

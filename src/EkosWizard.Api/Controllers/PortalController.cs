@@ -559,10 +559,11 @@ public class PortalController : ControllerBase
         // Replace answers: remove old, add new
         _db.FormSubmissionAnswers.RemoveRange(existing.Answers);
 
-        // Build auto-fill lookup (field ID → fixed value)
+        // Build auto-fill lookup (field ID → resolved value)
+        var draftProject = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         var autoFillMap = assignment.Form.Fields
             .Where(f => !string.IsNullOrEmpty(f.AutoFillValue))
-            .ToDictionary(f => f.Id, f => f.AutoFillValue!);
+            .ToDictionary(f => f.Id, f => ResolveAutoFillTokens(f.AutoFillValue!, draftProject));
 
         // Add user-submitted answers, skipping auto-fill fields
         foreach (var a in req.Answers)
@@ -657,10 +658,11 @@ public class PortalController : ControllerBase
         // Replace answers
         _db.FormSubmissionAnswers.RemoveRange(existing.Answers);
 
-        // Build auto-fill lookup (field ID → fixed value)
+        // Build auto-fill lookup (field ID → resolved value)
+        var submitProject = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         var autoFillMapSubmit = assignment.Form.Fields
             .Where(f => !string.IsNullOrEmpty(f.AutoFillValue))
-            .ToDictionary(f => f.Id, f => f.AutoFillValue!);
+            .ToDictionary(f => f.Id, f => ResolveAutoFillTokens(f.AutoFillValue!, submitProject));
 
         // Add user-submitted answers, skipping auto-fill fields
         foreach (var a in req.Answers)
@@ -695,7 +697,7 @@ public class PortalController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        var project = submitProject;
         await _audit.LogAsync(User, "form.submitted", "FormSubmission", existing.Id.ToString(),
             assignment.Form?.Name,
             projectId: id, projectName: project?.CustomerName,
@@ -937,6 +939,19 @@ public class PortalController : ControllerBase
     {
         var c = country.Trim().ToUpperInvariant();
         return c is "US" or "USA" or "UNITED STATES" or "UNITED STATES OF AMERICA";
+    }
+
+    private static string ResolveAutoFillTokens(string value, ImplementationProject? project)
+    {
+        if (project is null || !value.Contains("{{")) return value;
+        return value
+            .Replace("{{project.addressLine1}}", project.AddressLine1 ?? "")
+            .Replace("{{project.addressLine2}}", project.AddressLine2 ?? "")
+            .Replace("{{project.city}}", project.City ?? "")
+            .Replace("{{project.stateProvince}}", project.StateProvince ?? "")
+            .Replace("{{project.postalCode}}", project.PostalCode ?? "")
+            .Replace("{{project.country}}", project.Country ?? "")
+            .Replace("{{project.timezone}}", project.Timezone ?? "");
     }
 
     // GET /api/portal/projects/{id}/cross-form-data?sourceFormId=X&sourceFieldId=Y&mode=prefill|dropdown
