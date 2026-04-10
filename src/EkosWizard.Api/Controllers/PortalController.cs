@@ -61,7 +61,8 @@ public class PortalController : ControllerBase
         string DataSourceType, int? DataSourceId, int? MaxLength,
         int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId,
         int? DataSourceFormId, int? DataSourceFieldId,
-        bool AllowCustomValue, string? AutoFillValue);
+        bool AllowCustomValue, string? AutoFillValue,
+        int? DependsOnFieldId);
 
     public record ProjectSubmissionFormDto(
         int FormId, string FormName,
@@ -477,7 +478,8 @@ public class PortalController : ControllerBase
                     f.DataSourceType, f.DataSourceId, f.MaxLength,
                     f.CrossFormPreFillFormId, f.CrossFormPreFillFieldId,
                     f.DataSourceFormId, f.DataSourceFieldId,
-                    f.AllowCustomValue, f.AutoFillValue)));
+                    f.AllowCustomValue, f.AutoFillValue,
+                    f.DependsOnFieldId)));
 
         return Ok(formDto);
     }
@@ -772,7 +774,8 @@ public class PortalController : ControllerBase
     public async Task<IActionResult> GetDropdownOptions(
         [FromQuery] string dataSourceType,
         [FromQuery] int? dataSourceId,
-        [FromQuery] int? projectId)
+        [FromQuery] int? projectId,
+        [FromQuery] string? parentValue = null)
     {
         IList<string> options = dataSourceType switch
         {
@@ -839,7 +842,8 @@ public class PortalController : ControllerBase
 
             "ItemCatalog" =>
                 await _db.CatalogItems
-                    .Where(c => c.IsActive)
+                    .Where(c => c.IsActive &&
+                        (parentValue == null || c.Categories.Any(cat => cat.Name.ToLower() == parentValue.ToLower())))
                     .Select(c => c.ItemName)
                     .Distinct()
                     .OrderBy(n => n)

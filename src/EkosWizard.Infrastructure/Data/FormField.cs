@@ -73,6 +73,13 @@ public class FormField
     /// submission and shown read-only on the portal. The value is enforced server-side.</summary>
     public string? AutoFillValue { get; set; }
 
+    // ── Cascading dropdown ────────────────────────────────────────────────────
+
+    /// <summary>When set, this dropdown's options are re-fetched filtered by the current value
+    /// of the referenced sibling field on the same form.</summary>
+    public int? DependsOnFieldId { get; set; }
+    public FormField? DependsOnField { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

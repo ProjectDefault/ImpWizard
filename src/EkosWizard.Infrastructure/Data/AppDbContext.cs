@@ -144,6 +144,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
              .WithMany()
              .HasForeignKey(ff => ff.DataSourceFieldId)
              .OnDelete(DeleteBehavior.ClientSetNull);
+
+            e.HasOne(ff => ff.DependsOnField)
+             .WithMany()
+             .HasForeignKey(ff => ff.DependsOnFieldId)
+             .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         builder.Entity<ImportTemplate>(e =>

@@ -37,6 +37,8 @@ export interface FormFieldDto {
   importTemplateHeader: string | null
   allowCustomValue: boolean
   autoFillValue: string | null
+  dependsOnFieldId: number | null
+  dependsOnFieldLabel: string | null
   createdAt: string
   updatedAt: string
 }
@@ -120,6 +122,8 @@ export interface UpdateFormFieldPayload {
   allowCustomValue?: boolean
   autoFillValue?: string | null
   clearAutoFillValue?: boolean
+  dependsOnFieldId?: number | null
+  clearDependsOnFieldId?: boolean
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────

@@ -110,12 +110,14 @@ function SortableFieldCard({
 function FieldConfigPanel({
   field,
   allForms,
+  siblingFields,
   formId,
   onSaved,
   onClose,
 }: {
   field: FormFieldDto
   allForms: { id: number; name: string }[]
+  siblingFields: { id: number; label: string; dataSourceType: string }[]
   formId: number
   onSaved: (updated: FormFieldDto) => void
   onClose: () => void
@@ -135,6 +137,7 @@ function FieldConfigPanel({
   const [importTemplateHeader, setImportTemplateHeader] = useState(field.importTemplateHeader ?? '')
   const [allowCustomValue, setAllowCustomValue] = useState(field.allowCustomValue)
   const [autoFillValue, setAutoFillValue] = useState(field.autoFillValue ?? '')
+  const [dependsOnFieldId, setDependsOnFieldId] = useState<number | null>(field.dependsOnFieldId)
 
   const { data: preFillSourceForm } = useQuery({
     queryKey: ['forms', preFillFormId],
@@ -168,7 +171,8 @@ function FieldConfigPanel({
     preFillFieldId !== field.crossFormPreFillFieldId ||
     importTemplateHeader !== (field.importTemplateHeader ?? '') ||
     allowCustomValue !== field.allowCustomValue ||
-    autoFillValue !== (field.autoFillValue ?? '')
+    autoFillValue !== (field.autoFillValue ?? '') ||
+    dependsOnFieldId !== field.dependsOnFieldId
 
   function handleSave() {
     if (!label.trim()) { toast.error('Label is required'); return }
@@ -187,6 +191,9 @@ function FieldConfigPanel({
       crossFormPreFillFormId: !isDropdown ? (preFillFormId ?? 0) : 0,
       crossFormPreFillFieldId: !isDropdown ? (preFillFieldId ?? 0) : 0,
       allowCustomValue: isDropdown ? allowCustomValue : false,
+      ...(isDropdown && dependsOnFieldId != null
+        ? { dependsOnFieldId }
+        : { clearDependsOnFieldId: true }),
       ...(importTemplateHeader.trim()
         ? { importTemplateHeader: importTemplateHeader.trim() }
         : { clearImportTemplateHeader: true }),
@@ -207,6 +214,7 @@ function FieldConfigPanel({
       setDataSourceFormId(null)
       setDataSourceFieldId(null)
       setAllowCustomValue(false)
+      setDependsOnFieldId(null)
     } else {
       setPreFillFormId(null)
       setPreFillFieldId(null)
@@ -274,11 +282,14 @@ function FieldConfigPanel({
             dataSourceId={dataSourceId}
             dataSourceFormId={dataSourceFormId}
             dataSourceFieldId={dataSourceFieldId}
-            onTypeChange={setDataSourceType}
+            dependsOnFieldId={dependsOnFieldId}
+            onTypeChange={type => { setDataSourceType(type); setDependsOnFieldId(null) }}
             onIdChange={setDataSourceId}
             onFormIdChange={setDataSourceFormId}
             onFieldIdChange={setDataSourceFieldId}
+            onDependsOnFieldIdChange={setDependsOnFieldId}
             allForms={otherForms}
+            siblingFields={siblingFields}
           />
 
           {/* Allow custom value (combobox mode) */}
@@ -1023,6 +1034,9 @@ export default function FormEditorPage() {
                               <FieldConfigPanel
                                 field={field}
                                 allForms={otherFormsList}
+                                siblingFields={localFields
+                                  .filter(f => !f.isArchived && f.id !== field.id && f.fieldType === 'Dropdown')
+                                  .map(f => ({ id: f.id, label: f.label, dataSourceType: f.dataSourceType }))}
                                 formId={id}
                                 onSaved={handleFieldSaved}
                                 onClose={() => setSelectedFieldId(null)}

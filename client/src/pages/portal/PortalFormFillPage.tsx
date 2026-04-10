@@ -81,6 +81,7 @@ interface FieldRendererProps {
   isReadOnly: boolean
   projectId: number
   hasExistingSubmission: boolean
+  parentValue?: string
 }
 
 function PortalFieldRenderer({
@@ -90,8 +91,19 @@ function PortalFieldRenderer({
   isReadOnly,
   projectId,
   hasExistingSubmission,
+  parentValue,
 }: FieldRendererProps) {
   const preFillApplied = useRef(false)
+  const isCascading = field.dependsOnFieldId != null && field.dataSourceType === 'ItemCatalog'
+
+  // When parent value changes, clear this field's current value
+  const prevParentValue = useRef(parentValue)
+  useEffect(() => {
+    if (isCascading && prevParentValue.current !== parentValue && prevParentValue.current !== undefined) {
+      onChange('')
+    }
+    prevParentValue.current = parentValue
+  }, [parentValue, isCascading, onChange])
 
   // Cross-form pre-fill — only when no existing submission and field is configured
   const { data: preFillData } = useQuery({
@@ -121,8 +133,8 @@ function PortalFieldRenderer({
   // Static data source options (ReferenceData, ProductType, UnitOfMeasure, Category)
   const staticDataSourceTypes = ['ReferenceData', 'ProductType', 'UnitOfMeasure', 'Category', 'ItemCategory', 'ItemCatalog']
   const { data: staticOptions = [], isLoading: staticLoading } = useQuery({
-    queryKey: ['dropdown-options', field.dataSourceType, field.dataSourceId],
-    queryFn: () => getDropdownOptions(field.dataSourceType, field.dataSourceId),
+    queryKey: ['dropdown-options', field.dataSourceType, field.dataSourceId, isCascading ? (parentValue ?? '') : null],
+    queryFn: () => getDropdownOptions(field.dataSourceType, field.dataSourceId, isCascading ? parentValue : null),
     enabled: field.fieldType === 'Dropdown' && staticDataSourceTypes.includes(field.dataSourceType),
   })
 
@@ -540,6 +552,7 @@ export default function PortalFormFillPage() {
                       isReadOnly={isReadOnly}
                       projectId={pid}
                       hasExistingSubmission={!!submission}
+                      parentValue={field.dependsOnFieldId != null ? (answers[field.dependsOnFieldId] ?? '') : undefined}
                     />
                     {field.maxLength && field.fieldType !== 'Checkbox' && !isReadOnly && (
                       <p className="text-xs text-muted-foreground text-right">

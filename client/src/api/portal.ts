@@ -107,10 +107,11 @@ export interface FormFieldForFillDto {
   dataSourceFieldId?: number
   allowCustomValue: boolean
   autoFillValue?: string | null
+  dependsOnFieldId?: number | null
 }
 
-export const getDropdownOptions = (dataSourceType: string, dataSourceId?: number | null): Promise<string[]> =>
-  api.get('/portal/dropdown-options', { params: { dataSourceType, dataSourceId } }).then(r => r.data)
+export const getDropdownOptions = (dataSourceType: string, dataSourceId?: number | null, parentValue?: string | null): Promise<string[]> =>
+  api.get('/portal/dropdown-options', { params: { dataSourceType, dataSourceId, parentValue } }).then(r => r.data)
 
 export interface ProjectSubmissionAnswerDto {
   answerId: number

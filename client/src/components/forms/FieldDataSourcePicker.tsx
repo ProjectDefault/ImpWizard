@@ -5,16 +5,25 @@ import { getDataSets } from '@/api/referenceData'
 import { getForm } from '@/api/forms'
 import type { DataSourceType } from '@/api/forms'
 
+interface SiblingField {
+  id: number
+  label: string
+  dataSourceType: string
+}
+
 interface Props {
   dataSourceType: DataSourceType
   dataSourceId: number | null
   dataSourceFormId: number | null
   dataSourceFieldId: number | null
+  dependsOnFieldId: number | null
   onTypeChange: (type: DataSourceType) => void
   onIdChange: (id: number | null) => void
   onFormIdChange: (id: number | null) => void
   onFieldIdChange: (id: number | null) => void
+  onDependsOnFieldIdChange: (id: number | null) => void
   allForms: { id: number; name: string }[]
+  siblingFields: SiblingField[]
   disabled?: boolean
 }
 
@@ -37,11 +46,14 @@ export function FieldDataSourcePicker({
   dataSourceId,
   dataSourceFormId,
   dataSourceFieldId,
+  dependsOnFieldId,
   onTypeChange,
   onIdChange,
   onFormIdChange,
   onFieldIdChange,
+  onDependsOnFieldIdChange,
   allForms,
+  siblingFields,
   disabled = false,
 }: Props) {
   const { data: datasets = [] } = useQuery({
@@ -148,24 +160,58 @@ export function FieldDataSourcePicker({
       )}
 
       {dataSourceType === 'ItemCatalog' && (
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Column</Label>
-          <Select
-            value={dataSourceId?.toString() ?? '1'}
-            onValueChange={v => onIdChange(Number(v))}
-            disabled={disabled}
-          >
-            <SelectTrigger className="h-8 text-sm">
-              <SelectValue>
-                {ITEM_CATALOG_COLUMNS.find(c => c.id === (dataSourceId ?? 1))?.label ?? 'Item Name'}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {ITEM_CATALOG_COLUMNS.map(c => (
-                <SelectItem key={c.id} value={c.id.toString()}>{c.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="space-y-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Column</Label>
+            <Select
+              value={dataSourceId?.toString() ?? '1'}
+              onValueChange={v => onIdChange(Number(v))}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue>
+                  {ITEM_CATALOG_COLUMNS.find(c => c.id === (dataSourceId ?? 1))?.label ?? 'Item Name'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {ITEM_CATALOG_COLUMNS.map(c => (
+                  <SelectItem key={c.id} value={c.id.toString()}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(dataSourceId == null || dataSourceId === 1) && (() => {
+            const categoryFields = siblingFields.filter(f => f.dataSourceType === 'ItemCategory')
+            if (categoryFields.length === 0) return null
+            return (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Filter by field (optional)</Label>
+                <Select
+                  value={dependsOnFieldId?.toString() ?? 'none'}
+                  onValueChange={v => onDependsOnFieldIdChange(v === 'none' ? null : Number(v))}
+                  disabled={disabled}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue>
+                      {dependsOnFieldId != null
+                        ? (categoryFields.find(f => f.id === dependsOnFieldId)?.label ?? `Field #${dependsOnFieldId}`)
+                        : <span className="text-muted-foreground">No filter (show all)</span>}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No filter (show all)</SelectItem>
+                    {categoryFields.map(f => (
+                      <SelectItem key={f.id} value={f.id.toString()}>{f.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  When set, item list filters to the category selected in the chosen field.
+                </p>
+              </div>
+            )
+          })()}
         </div>
       )}
 

@@ -42,6 +42,7 @@ public class FormsController : ControllerBase
         int? DataSourceFormId, int? DataSourceFieldId, string? DataSourceFormName,
         string? ImportTemplateHeader, bool AllowCustomValue,
         string? AutoFillValue,
+        int? DependsOnFieldId, string? DependsOnFieldLabel,
         DateTime CreatedAt, DateTime UpdatedAt);
 
     public record FormDetailDto(
@@ -79,7 +80,9 @@ public class FormsController : ControllerBase
         bool ClearImportTemplateHeader = false,
         bool? AllowCustomValue = null,
         string? AutoFillValue = null,
-        bool ClearAutoFillValue = false);
+        bool ClearAutoFillValue = false,
+        int? DependsOnFieldId = null,
+        bool ClearDependsOnFieldId = false);
 
     public record ReorderRequest(int[] FieldIds);
 
@@ -103,6 +106,7 @@ public class FormsController : ControllerBase
             ff.DataSourceFormId, ff.DataSourceFieldId, ff.DataSourceForm?.Name,
             ff.ImportTemplateHeader, ff.AllowCustomValue,
             ff.AutoFillValue,
+            ff.DependsOnFieldId, ff.DependsOnField?.Label,
             ff.CreatedAt, ff.UpdatedAt);
 
     private static string? GetDataSourceName(FormField ff) => ff.DataSourceType switch
@@ -136,7 +140,9 @@ public class FormsController : ControllerBase
            .Include(f => f.Fields)
                .ThenInclude(ff => ff.CrossFormPreFillField)
            .Include(f => f.Fields)
-               .ThenInclude(ff => ff.DataSourceForm);
+               .ThenInclude(ff => ff.DataSourceForm)
+           .Include(f => f.Fields)
+               .ThenInclude(ff => ff.DependsOnField);
 
     // ── Form CRUD ─────────────────────────────────────────────────────────────
 
@@ -421,6 +427,8 @@ public class FormsController : ControllerBase
         if (req.ClearAutoFillValue) field.AutoFillValue = null;
         else if (req.AutoFillValue is not null)
             field.AutoFillValue = req.AutoFillValue.Trim().Length > 0 ? req.AutoFillValue.Trim() : null;
+        if (req.ClearDependsOnFieldId) field.DependsOnFieldId = null;
+        else if (req.DependsOnFieldId is not null) field.DependsOnFieldId = req.DependsOnFieldId == 0 ? null : req.DependsOnFieldId;
         field.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
@@ -431,6 +439,8 @@ public class FormsController : ControllerBase
             await _db.Entry(field).Reference(ff => ff.CrossFormPreFillField).LoadAsync();
         if (field.DataSourceFormId.HasValue)
             await _db.Entry(field).Reference(ff => ff.DataSourceForm).LoadAsync();
+        if (field.DependsOnFieldId.HasValue)
+            await _db.Entry(field).Reference(ff => ff.DependsOnField).LoadAsync();
 
         if (form.Status == "Unlocked")
             await _importTemplates.SyncFromFormAsync(id);
