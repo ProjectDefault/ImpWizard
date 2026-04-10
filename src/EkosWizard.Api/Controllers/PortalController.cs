@@ -62,7 +62,8 @@ public class PortalController : ControllerBase
         int? CrossFormPreFillFormId, int? CrossFormPreFillFieldId,
         int? DataSourceFormId, int? DataSourceFieldId,
         bool AllowCustomValue, string? AutoFillValue,
-        int? DependsOnFieldId);
+        int? DependsOnFieldId,
+        bool IsCatalogItemSource, string? CatalogAutoFillColumn);
 
     public record ProjectSubmissionFormDto(
         int FormId, string FormName,
@@ -479,7 +480,8 @@ public class PortalController : ControllerBase
                     f.CrossFormPreFillFormId, f.CrossFormPreFillFieldId,
                     f.DataSourceFormId, f.DataSourceFieldId,
                     f.AllowCustomValue, f.AutoFillValue,
-                    f.DependsOnFieldId)));
+                    f.DependsOnFieldId,
+                    f.IsCatalogItemSource, f.CatalogAutoFillColumn)));
 
         return Ok(formDto);
     }
@@ -878,6 +880,63 @@ public class PortalController : ControllerBase
         };
 
         return Ok(options);
+    }
+
+    // GET /api/portal/catalog-item-lookup?itemName=X&projectId=Y
+    [HttpGet("catalog-item-lookup")]
+    public async Task<IActionResult> GetCatalogItemLookup(
+        [FromQuery] string itemName,
+        [FromQuery] int? projectId)
+    {
+        var item = await _db.CatalogItems
+            .Include(c => c.Categories)
+            .Include(c => c.PurchaseUom)
+            .Where(c => c.IsActive && c.ItemName == itemName)
+            .FirstOrDefaultAsync();
+
+        if (item is null)
+            return Ok(new { found = false, itemName = (string?)null, itemCategory = (string?)null, vendorSku = (string?)null, purchaseUomDescription = (string?)null, uomName = (string?)null, suggestedUomName = (string?)null });
+
+        string? rawUomName = item.PurchaseUom?.Name;
+        string? suggestedUomName = rawUomName;
+
+        // Country-based UOM conversion: US/United States → imperial
+        if (projectId.HasValue)
+        {
+            var country = await _db.Projects
+                .Where(p => p.Id == projectId.Value)
+                .Select(p => p.Country)
+                .FirstOrDefaultAsync();
+
+            if (country != null && IsUsCountry(country))
+            {
+                suggestedUomName = rawUomName switch
+                {
+                    "kg"  => "lb",
+                    "g"   => "oz",
+                    "L"   => "fl oz",
+                    "mL"  => "fl oz",
+                    _     => rawUomName,
+                };
+            }
+        }
+
+        return Ok(new
+        {
+            found = true,
+            itemName = item.ItemName,
+            itemCategory = item.Categories.FirstOrDefault()?.Name,
+            vendorSku = item.VendorItemNumber,
+            purchaseUomDescription = item.PurchaseUomDescription,
+            uomName = rawUomName,
+            suggestedUomName,
+        });
+    }
+
+    private static bool IsUsCountry(string country)
+    {
+        var c = country.Trim().ToUpperInvariant();
+        return c is "US" or "USA" or "UNITED STATES" or "UNITED STATES OF AMERICA";
     }
 
     // GET /api/portal/projects/{id}/cross-form-data?sourceFormId=X&sourceFieldId=Y&mode=prefill|dropdown

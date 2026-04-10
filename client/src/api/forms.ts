@@ -39,6 +39,8 @@ export interface FormFieldDto {
   autoFillValue: string | null
   dependsOnFieldId: number | null
   dependsOnFieldLabel: string | null
+  isCatalogItemSource: boolean
+  catalogAutoFillColumn: string | null
   createdAt: string
   updatedAt: string
 }
@@ -124,6 +126,9 @@ export interface UpdateFormFieldPayload {
   clearAutoFillValue?: boolean
   dependsOnFieldId?: number | null
   clearDependsOnFieldId?: boolean
+  isCatalogItemSource?: boolean
+  catalogAutoFillColumn?: string | null
+  clearCatalogAutoFillColumn?: boolean
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────

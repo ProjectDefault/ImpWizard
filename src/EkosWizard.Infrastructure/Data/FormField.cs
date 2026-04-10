@@ -80,6 +80,17 @@ public class FormField
     public int? DependsOnFieldId { get; set; }
     public FormField? DependsOnField { get; set; }
 
+    // ── Catalog item auto-fill ────────────────────────────────────────────────
+
+    /// <summary>When true, this field is the catalog item picker that drives auto-fill for
+    /// other fields on the same form.</summary>
+    public bool IsCatalogItemSource { get; set; } = false;
+
+    /// <summary>When set, this field auto-fills from this column of the catalog item selected
+    /// in the IsCatalogItemSource field on the same form.
+    /// Values: "ItemName" | "ItemCategory" | "VendorSku" | "PurchaseUomDescription" | "UomName"</summary>
+    public string? CatalogAutoFillColumn { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

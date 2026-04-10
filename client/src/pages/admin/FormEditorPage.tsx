@@ -117,7 +117,7 @@ function FieldConfigPanel({
 }: {
   field: FormFieldDto
   allForms: { id: number; name: string }[]
-  siblingFields: { id: number; label: string; dataSourceType: string }[]
+  siblingFields: { id: number; label: string; dataSourceType: string; isCatalogItemSource: boolean }[]
   formId: number
   onSaved: (updated: FormFieldDto) => void
   onClose: () => void
@@ -138,6 +138,8 @@ function FieldConfigPanel({
   const [allowCustomValue, setAllowCustomValue] = useState(field.allowCustomValue)
   const [autoFillValue, setAutoFillValue] = useState(field.autoFillValue ?? '')
   const [dependsOnFieldId, setDependsOnFieldId] = useState<number | null>(field.dependsOnFieldId)
+  const [isCatalogItemSource, setIsCatalogItemSource] = useState(field.isCatalogItemSource)
+  const [catalogAutoFillColumn, setCatalogAutoFillColumn] = useState<string | null>(field.catalogAutoFillColumn)
 
   const { data: preFillSourceForm } = useQuery({
     queryKey: ['forms', preFillFormId],
@@ -172,7 +174,9 @@ function FieldConfigPanel({
     importTemplateHeader !== (field.importTemplateHeader ?? '') ||
     allowCustomValue !== field.allowCustomValue ||
     autoFillValue !== (field.autoFillValue ?? '') ||
-    dependsOnFieldId !== field.dependsOnFieldId
+    dependsOnFieldId !== field.dependsOnFieldId ||
+    isCatalogItemSource !== field.isCatalogItemSource ||
+    catalogAutoFillColumn !== field.catalogAutoFillColumn
 
   function handleSave() {
     if (!label.trim()) { toast.error('Label is required'); return }
@@ -191,9 +195,13 @@ function FieldConfigPanel({
       crossFormPreFillFormId: !isDropdown ? (preFillFormId ?? 0) : 0,
       crossFormPreFillFieldId: !isDropdown ? (preFillFieldId ?? 0) : 0,
       allowCustomValue: isDropdown ? allowCustomValue : false,
+      isCatalogItemSource: isDropdown && allowCustomValue ? isCatalogItemSource : false,
       ...(isDropdown && dependsOnFieldId != null
         ? { dependsOnFieldId }
         : { clearDependsOnFieldId: true }),
+      ...(catalogAutoFillColumn
+        ? { catalogAutoFillColumn }
+        : { clearCatalogAutoFillColumn: true }),
       ...(importTemplateHeader.trim()
         ? { importTemplateHeader: importTemplateHeader.trim() }
         : { clearImportTemplateHeader: true }),
@@ -215,6 +223,8 @@ function FieldConfigPanel({
       setDataSourceFieldId(null)
       setAllowCustomValue(false)
       setDependsOnFieldId(null)
+      setIsCatalogItemSource(false)
+      setCatalogAutoFillColumn(null)
     } else {
       setPreFillFormId(null)
       setPreFillFieldId(null)
@@ -298,7 +308,7 @@ function FieldConfigPanel({
               <Switch
                 id={`custom-${field.id}`}
                 checked={allowCustomValue}
-                onCheckedChange={setAllowCustomValue}
+                onCheckedChange={v => { setAllowCustomValue(v); if (!v) setIsCatalogItemSource(false) }}
                 className="scale-90"
               />
               <Label htmlFor={`custom-${field.id}`} className="text-xs cursor-pointer">
@@ -306,8 +316,60 @@ function FieldConfigPanel({
               </Label>
             </div>
           )}
+
+          {/* Catalog item source toggle — only for combobox ItemCatalog fields */}
+          {dataSourceType === 'ItemCatalog' && allowCustomValue && (
+            <div className="flex items-center gap-2 pt-1">
+              <Switch
+                id={`cat-src-${field.id}`}
+                checked={isCatalogItemSource}
+                onCheckedChange={setIsCatalogItemSource}
+                className="scale-90"
+              />
+              <Label htmlFor={`cat-src-${field.id}`} className="text-xs cursor-pointer">
+                Catalog item source <span className="text-muted-foreground">(drives auto-fill)</span>
+              </Label>
+            </div>
+          )}
         </>
       )}
+
+      {/* Catalog auto-fill column — for any field when another field on the form is the catalog source */}
+      {(() => {
+        const sourceField = siblingFields.find(f => f.isCatalogItemSource)
+        if (!sourceField) return null
+        const COLUMNS = [
+          { value: 'ItemName', label: 'Item Name' },
+          { value: 'ItemCategory', label: 'Category' },
+          { value: 'VendorSku', label: 'Vendor SKU' },
+          { value: 'PurchaseUomDescription', label: 'Purchase Description' },
+          { value: 'UomName', label: 'Unit of Measure' },
+        ]
+        return (
+          <div className="space-y-1.5 pt-1 border-t">
+            <Label className="text-xs">Auto-fill from catalog item <span className="text-muted-foreground">(optional)</span></Label>
+            <Select
+              value={catalogAutoFillColumn ?? 'none'}
+              onValueChange={v => setCatalogAutoFillColumn(v === 'none' ? null : v)}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue>
+                  {catalogAutoFillColumn
+                    ? (COLUMNS.find(c => c.value === catalogAutoFillColumn)?.label ?? catalogAutoFillColumn)
+                    : <span className="text-muted-foreground">None</span>}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {COLUMNS.map(c => (
+                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )
+      })()}
+
 
       {/* Required */}
       <div className="flex items-center gap-2">
@@ -1036,7 +1098,7 @@ export default function FormEditorPage() {
                                 allForms={otherFormsList}
                                 siblingFields={localFields
                                   .filter(f => !f.isArchived && f.id !== field.id && f.fieldType === 'Dropdown')
-                                  .map(f => ({ id: f.id, label: f.label, dataSourceType: f.dataSourceType }))}
+                                  .map(f => ({ id: f.id, label: f.label, dataSourceType: f.dataSourceType, isCatalogItemSource: f.isCatalogItemSource }))}
                                 formId={id}
                                 onSaved={handleFieldSaved}
                                 onClose={() => setSelectedFieldId(null)}

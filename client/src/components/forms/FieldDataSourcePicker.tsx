@@ -9,6 +9,7 @@ interface SiblingField {
   id: number
   label: string
   dataSourceType: string
+  isCatalogItemSource: boolean
 }
 
 interface Props {

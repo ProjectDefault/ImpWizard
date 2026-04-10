@@ -43,6 +43,7 @@ public class FormsController : ControllerBase
         string? ImportTemplateHeader, bool AllowCustomValue,
         string? AutoFillValue,
         int? DependsOnFieldId, string? DependsOnFieldLabel,
+        bool IsCatalogItemSource, string? CatalogAutoFillColumn,
         DateTime CreatedAt, DateTime UpdatedAt);
 
     public record FormDetailDto(
@@ -82,7 +83,10 @@ public class FormsController : ControllerBase
         string? AutoFillValue = null,
         bool ClearAutoFillValue = false,
         int? DependsOnFieldId = null,
-        bool ClearDependsOnFieldId = false);
+        bool ClearDependsOnFieldId = false,
+        bool? IsCatalogItemSource = null,
+        string? CatalogAutoFillColumn = null,
+        bool ClearCatalogAutoFillColumn = false);
 
     public record ReorderRequest(int[] FieldIds);
 
@@ -107,6 +111,7 @@ public class FormsController : ControllerBase
             ff.ImportTemplateHeader, ff.AllowCustomValue,
             ff.AutoFillValue,
             ff.DependsOnFieldId, ff.DependsOnField?.Label,
+            ff.IsCatalogItemSource, ff.CatalogAutoFillColumn,
             ff.CreatedAt, ff.UpdatedAt);
 
     private static string? GetDataSourceName(FormField ff) => ff.DataSourceType switch
@@ -429,6 +434,9 @@ public class FormsController : ControllerBase
             field.AutoFillValue = req.AutoFillValue.Trim().Length > 0 ? req.AutoFillValue.Trim() : null;
         if (req.ClearDependsOnFieldId) field.DependsOnFieldId = null;
         else if (req.DependsOnFieldId is not null) field.DependsOnFieldId = req.DependsOnFieldId == 0 ? null : req.DependsOnFieldId;
+        if (req.IsCatalogItemSource is not null) field.IsCatalogItemSource = req.IsCatalogItemSource.Value;
+        if (req.ClearCatalogAutoFillColumn) field.CatalogAutoFillColumn = null;
+        else if (req.CatalogAutoFillColumn is not null) field.CatalogAutoFillColumn = req.CatalogAutoFillColumn.Trim().Length > 0 ? req.CatalogAutoFillColumn.Trim() : null;
         field.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

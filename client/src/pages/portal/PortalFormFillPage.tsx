@@ -20,6 +20,7 @@ import {
   getCrossFormPrefill,
   getCrossFormDropdown,
   getDropdownOptions,
+  getCatalogItemLookup,
   type FormFieldForFillDto,
 } from '@/api/portal'
 import { getBulkSubmission, uploadBulkFile } from '@/api/bulkSubmissions'
@@ -305,6 +306,53 @@ export default function PortalFormFillPage() {
       setAnswers(filled)
     }
   }, [submission])
+
+  // Catalog item auto-fill: when the catalog source field's value changes, look up the
+  // catalog item and populate all fields with a catalogAutoFillColumn configured.
+  const catalogSourceField = form?.fields.find(f => f.isCatalogItemSource)
+  const catalogSourceValue = catalogSourceField ? (answers[catalogSourceField.id] ?? '') : ''
+  const prevCatalogSourceValue = useRef('')
+
+  useEffect(() => {
+    if (!form || isReadOnly || !catalogSourceField) return
+    const current = catalogSourceValue
+    const prev = prevCatalogSourceValue.current
+    prevCatalogSourceValue.current = current
+
+    const autoFillFields = form.fields.filter(f => f.catalogAutoFillColumn)
+    if (autoFillFields.length === 0) return
+
+    if (current === '') {
+      // Cleared — blank all auto-fill fields
+      setAnswers(prev => {
+        const updated = { ...prev }
+        for (const f of autoFillFields) updated[f.id] = ''
+        return updated
+      })
+      return
+    }
+
+    if (current === prev) return
+
+    // Look up the catalog item and populate fields
+    getCatalogItemLookup(current, pid).then(result => {
+      setAnswers(prev => {
+        const updated = { ...prev }
+        for (const f of autoFillFields) {
+          if (!f.catalogAutoFillColumn) continue
+          const val = result.found ? ({
+            ItemName: result.itemName,
+            ItemCategory: result.itemCategory,
+            VendorSku: result.vendorSku,
+            PurchaseUomDescription: result.purchaseUomDescription,
+            UomName: result.suggestedUomName,
+          } as Record<string, string | null>)[f.catalogAutoFillColumn] ?? '' : ''
+          updated[f.id] = val
+        }
+        return updated
+      })
+    })
+  }, [catalogSourceValue]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isReadOnly = submission?.status === 'Submitted'
 

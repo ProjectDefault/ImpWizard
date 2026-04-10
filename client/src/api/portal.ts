@@ -108,10 +108,25 @@ export interface FormFieldForFillDto {
   allowCustomValue: boolean
   autoFillValue?: string | null
   dependsOnFieldId?: number | null
+  isCatalogItemSource: boolean
+  catalogAutoFillColumn?: string | null
 }
 
 export const getDropdownOptions = (dataSourceType: string, dataSourceId?: number | null, parentValue?: string | null): Promise<string[]> =>
   api.get('/portal/dropdown-options', { params: { dataSourceType, dataSourceId, parentValue } }).then(r => r.data)
+
+export interface CatalogItemLookupDto {
+  found: boolean
+  itemName: string | null
+  itemCategory: string | null
+  vendorSku: string | null
+  purchaseUomDescription: string | null
+  uomName: string | null
+  suggestedUomName: string | null
+}
+
+export const getCatalogItemLookup = (itemName: string, projectId: number): Promise<CatalogItemLookupDto> =>
+  api.get('/portal/catalog-item-lookup', { params: { itemName, projectId } }).then(r => r.data)
 
 export interface ProjectSubmissionAnswerDto {
   answerId: number
