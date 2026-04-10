@@ -398,6 +398,8 @@
     <a href="#phase-1j">1j &mdash; Bulk File Submission</a>
     <a href="#phase-1k">1k &mdash; Packaging Types Catalog</a>
     <a href="#phase-1l">1l &mdash; Product Management</a>
+    <a href="#phase-1m">1m &mdash; Project Address &amp; Locale</a>
+    <a href="#phase-1n">1n &mdash; Cascading Dropdowns</a>
     <a href="#phase-2">2 &mdash; Audit Log</a>
     <a href="#phase-3">3 &mdash; Salesforce</a>
     <a href="#phase-4">4 &mdash; QuickBooks</a>
@@ -1074,6 +1076,47 @@
             <li><strong>Import template source</strong> — product lists available as a data source for import template column mapping.</li>
           </ol>
           <div class="deliverable">Admins curate a per-project product list, toggle individual products in or out, resolve duplicates automatically, and publish the list to the customer portal in one click. Deployed 2026-03-30.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1m — Project Address & Locale -->
+      <div class="phase" id="phase-1m">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1m</div>
+          <div>
+            <div class="phase-title">Project Address &amp; Locale <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Add address and timezone fields to projects; foundation for UOM defaulting and address auto-fill tokens in forms</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Data model</strong> — seven nullable string properties added to <code>ImplementationProject</code>: AddressLine1, AddressLine2, City, StateProvince, PostalCode, Country, Timezone (IANA string). Migration <code>AddProjectAddressFields</code>.</li>
+            <li><strong>ProjectsController</strong> — all seven fields added to <code>CreateProjectRequest</code>, <code>UpdateProjectRequest</code>, and the project DTO. Editable by Admin and CIS roles.</li>
+            <li><strong>Admin UI</strong> — "Settings" tab added to <code>ProjectDetailPage</code> with three sections: General (customer name, project type, specialist, status), Address (AddressLine1/2, City, StateProvince, PostalCode, Country with datalist suggestions), and Locale (Timezone as searchable IANA zone select). Save triggers <code>PUT /api/projects/{id}</code>.</li>
+          </ol>
+          <div class="deliverable">Each project can store a full address and IANA timezone. These values drive UOM defaulting in Phase 1o and address token auto-fill in Phase 1p. Deployed 2026-04-09.</div>
+        </div>
+      </div>
+
+      <!-- Phase 1n — Cascading Dropdowns -->
+      <div class="phase" id="phase-1n">
+        <div class="phase-header">
+          <div class="phase-number" style="background:var(--green)">1n</div>
+          <div>
+            <div class="phase-title">Cascading Dropdowns <span style="font-size:.8rem;font-weight:600;color:var(--green);margin-left:8px">&#10003; Complete</span></div>
+            <div class="phase-goal">Allow a dropdown field to filter its options based on the current value of a sibling field on the same form</div>
+          </div>
+        </div>
+        <div class="phase-body">
+          <ol>
+            <li><strong>Data model</strong> — <code>DependsOnFieldId</code> (nullable self-referencing FK) and <code>DependsOnField</code> navigation property added to <code>FormField</code>. <code>DeleteBehavior.ClientSetNull</code>. Migration <code>AddFormFieldDependsOn</code>.</li>
+            <li><strong>FormsController</strong> — <code>DependsOnFieldId</code> / <code>DependsOnFieldLabel</code> included in <code>FormFieldDto</code>; <code>UpdateFormFieldRequest</code> accepts <code>DependsOnFieldId</code> and <code>ClearDependsOnFieldId</code>; Update handler applies both; <code>FormsWithFields()</code> includes <code>DependsOnField</code>.</li>
+            <li><strong>PortalController</strong> — <code>GetDropdownOptions</code> accepts optional <code>parentValue</code> query param; when provided and <code>dataSourceType = "ItemCatalog"</code> (item name column), filters catalog items to those in the named category (case-insensitive). <code>FormFieldForFillDto</code> now includes <code>DependsOnFieldId</code>.</li>
+            <li><strong>Admin UI (FieldDataSourcePicker)</strong> — when <code>ItemCatalog</code> + Item Name column is selected and there are sibling <code>ItemCategory</code> fields on the form, a "Filter by field" dropdown appears. Selecting one saves <code>DependsOnFieldId</code>; "No filter" clears it.</li>
+            <li><strong>Admin UI (FormEditorPage)</strong> — <code>FieldConfigPanel</code> receives <code>siblingFields</code> (all non-archived dropdown fields on the same form, excluding self); <code>dependsOnFieldId</code> state wired to <code>isDirty</code>, <code>handleSave</code>, and reset on field-type change.</li>
+            <li><strong>Portal (PortalFormFillPage)</strong> — <code>PortalFieldRenderer</code> receives <code>parentValue</code> prop (current answer of the parent field); query key includes <code>parentValue</code> so TanStack Query re-fetches when it changes; child field value clears automatically when parent changes; <code>getDropdownOptions</code> forwards <code>parentValue</code> to the API.</li>
+          </ol>
+          <div class="deliverable">Admins can configure a Category field (ItemCategory) and an Item field (ItemCatalog) where the item list auto-filters to the selected category. No category selection = full item list shown. Deployed 2026-04-10.</div>
         </div>
       </div>
 
